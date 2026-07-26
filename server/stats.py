@@ -1,11 +1,14 @@
 import db
 
 def get_stats(user_id: int) -> dict:
-    """Return denied_count, approved_count, saved_cents, top_category."""
-    pass
+    return db.stats(user_id)
 
 def get_profile(user_id: int) -> dict:
-    pass
+    profile = db.get_profile(user_id)
+    if not profile:
+        return {}
+    profile["user_id"] = profile.pop("id", user_id)
+    return profile
 
 def update_profile(user_id: int, profile: dict) -> None:
-    pass
+    db.put_profile(user_id, profile)

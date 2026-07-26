@@ -2,7 +2,7 @@
 
 **Owner:** D
 **Timebox:** 3 hours, parallel slice
-**Status:** Independent. You build the persistence layer and the demo assets. Everyone else imports your stubs.
+**Status:** **COMPLETE.** All 9 deliverables done. db.py real implementations, stats/profile routes wired, seed data verified.
 
 ---
 

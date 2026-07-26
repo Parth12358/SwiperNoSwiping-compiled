@@ -74,7 +74,7 @@ Sanity check the DB:
 
 ```bash
 curl localhost:8000/api/stats/1
-# {"denied_count":12,"approved_count":3,"saved_cents":128400,"top_category":"electronics"}
+# {"denied_count":9,"approved_count":3,"saved_cents":226600,"top_category":"electronics"}
 ```
 
 Sanity check DeepSeek:
@@ -135,7 +135,7 @@ POST /api/interrogate
 → { "session_id": "b1f3…", "verdict": "pending",
     "reply": "You already own two pairs of over-ears. What changed?",
     "turn": 1, "turns_remaining": 2, "score": null,
-    "savings_total_cents": 128400 }
+    "savings_total_cents": 226600 }
 ```
 
 `verdict` is one of `pending` · `approved` · `denied`.

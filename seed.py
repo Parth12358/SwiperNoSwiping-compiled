@@ -1,7 +1,8 @@
 """Seed the database with a demo user and purchase history."""
 import sqlite3
+import os
 
-DB = "server/swiperno.db"
+DB = os.environ.get("SWIPERNO_DB_PATH", os.path.join(os.path.dirname(__file__), "server", "swiperno.db"))
 
 def seed():
     conn = sqlite3.connect(DB)
@@ -27,15 +28,15 @@ def seed():
     ]
     
     conn.executemany("""
-        INSERT OR REPLACE INTO purchases (id, user_id, site, product_title, price_cents, currency, url, image_url, category, verdict, score, final_justification)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+        INSERT OR REPLACE INTO purchases (user_id, site, product_title, price_cents, currency, url, image_url, category, verdict, score, final_justification)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?)
     """, purchases)
     
     conn.commit()
     
-    denied_count = sum(1 for p in purchases if p[9] == "denied")
-    saved_cents = sum(p[4] for p in purchases if p[9] == "denied")
-    approved_count = sum(1 for p in purchases if p[9] == "approved")
+    denied_count = sum(1 for p in purchases if p[8] == "denied")
+    saved_cents = sum(p[3] for p in purchases if p[8] == "denied")
+    approved_count = sum(1 for p in purchases if p[8] == "approved")
     
     print(f"[seed] {len(purchases)} purchases seeded")
     print(f"[seed]   denied: {denied_count}, approved: {approved_count}")

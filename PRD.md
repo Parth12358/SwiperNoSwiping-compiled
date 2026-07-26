@@ -347,7 +347,7 @@ Rows are created as `abandoned` and updated on verdict, so a user who closes the
 
 ```jsonc
 GET /api/stats/1
-{ "denied_count": 12, "approved_count": 3, "saved_cents": 128400, "top_category": "electronics" }
+{ "denied_count": 9, "approved_count": 3, "saved_cents": 226600, "top_category": "electronics" }
 
 GET | PUT /api/profile/1
 { "user_id": 1, "display_name": "…", "income_band": "…", "monthly_budget_cents": 200000,
