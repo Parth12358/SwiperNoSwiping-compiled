@@ -1,5 +1,7 @@
 # SwipernoSwiping
 
+Letters of Purchase Intent : https://drive.google.com/drive/folders/1cR_cMaxHgWpM-zcN0LMwmvbVEbxHqTUP?usp=sharing
+
 > Your wallet now has a lawyer, and the lawyer thinks you're lying.
 
 A Chrome extension that covers the **Buy Now** button with an invisible wall. To get through it, you have to justify the purchase to an LLM that has read your budget, your savings goal, and the last twelve things you bought.
