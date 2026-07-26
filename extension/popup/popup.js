@@ -7,8 +7,9 @@ const USER_ID = 1;
 // --- API helpers ---
 
 async function apiFetch(path, options = {}) {
+  const hasBody = options.body !== undefined;
   const res = await fetch(`${BACKEND_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
+    headers: hasBody ? { 'Content-Type': 'application/json' } : {},
     ...options,
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -78,9 +79,8 @@ async function saveProfile(e) {
   };
 
   try {
-    await fetch(`${BACKEND_URL}/api/profile/${USER_ID}`, {
+    await apiFetch(`/api/profile/${USER_ID}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
     showToast('Profile saved.', 'success');
@@ -111,3 +111,4 @@ document.getElementById('btn-back').addEventListener('click', showStatsPanel);
 document.getElementById('profile-form').addEventListener('submit', saveProfile);
 
 loadStats();
+setInterval(loadStats, 10000);

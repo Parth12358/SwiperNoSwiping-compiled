@@ -102,7 +102,9 @@ Open any supported product page and click Buy Now. Nothing happens. That's the f
 Or use the offline demo page, which is safer and doesn't involve a real card:
 
 ```bash
-open demo/product.html
+# macOS:   open demo/product.html
+# Linux:   xdg-open demo/product.html
+# or just drag the file into Chrome
 ```
 
 ---
