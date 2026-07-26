@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SwiperNoSwiping — your wallet has a lawyer now</title>
+<meta name="description" content="A Chrome extension that blocks the Buy button and makes you argue with an AI who has seen your bank statement. Win the argument or keep your money.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧑‍⚖️</text></svg>">
+<style>
+  :root {
+    --bg: #FAFAFA;          /* zinc-50 */
+    --surface: #FFFFFF;
+    --ink: #09090B;         /* zinc-950 */
+    --muted: #71717A;       /* zinc-500 */
+    --faint: #A1A1AA;       /* zinc-400 */
+    --border: #E4E4E7;      /* zinc-200 */
+    --border-strong: #D4D4D8;
+    --denied: #DC2626;      /* red-600 */
+    --denied-bg: #FEF2F2;   /* red-50 */
+    --approved: #16A34A;    /* green-600 */
+    --approved-bg: #F0FDF4; /* green-50 */
+    --radius: 10px;
+    --font-display: "Bricolage Grotesque", "Inter", system-ui, sans-serif;
+    --font-body: "Inter", system-ui, -apple-system, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+    --shadow-sm: 0 1px 2px rgba(9, 9, 11, 0.05);
+    --shadow-md: 0 4px 16px rgba(9, 9, 11, 0.08), 0 1px 2px rgba(9, 9, 11, 0.05);
+    --shadow-lg: 0 24px 64px rgba(9, 9, 11, 0.14), 0 4px 16px rgba(9, 9, 11, 0.06);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+
+  /* ---------- Nav ---------- */
+  nav {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(250, 250, 250, 0.86);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-inner { display: flex; align-items: center; justify-content: space-between; height: 60px; }
+  .logo { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-weight: 800; font-size: 17px; text-decoration: none; letter-spacing: -0.01em; }
+  .logo-mark { width: 28px; height: 28px; border-radius: 8px; background: var(--ink); color: #fff; display: grid; place-items: center; font-size: 15px; }
+  .nav-links { display: flex; align-items: center; gap: 8px; }
+  .nav-links a.plain { text-decoration: none; font-size: 14px; font-weight: 500; color: var(--muted); padding: 8px 12px; border-radius: 8px; }
+  .nav-links a.plain:hover { color: var(--ink); background: #F4F4F5; }
+
+  /* ---------- Buttons (shadcn language) ---------- */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    font-family: var(--font-body); font-size: 14px; font-weight: 600;
+    border-radius: var(--radius); border: 1px solid transparent;
+    padding: 10px 18px; cursor: pointer; text-decoration: none;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  }
+  .btn:focus-visible, a:focus-visible, button:focus-visible, input:focus-visible {
+    outline: 2px solid var(--ink); outline-offset: 2px;
+  }
+  .btn-primary { background: var(--ink); color: #fff; }
+  .btn-primary:hover { background: #27272A; }
+  .btn-outline { background: var(--surface); color: var(--ink); border-color: var(--border-strong); }
+  .btn-outline:hover { border-color: var(--faint); background: #F4F4F5; }
+  .btn-lg { padding: 14px 24px; font-size: 15px; }
+
+  /* ---------- Hero ---------- */
+  .hero { padding: 88px 0 72px; overflow: hidden; }
+  .hero-grid { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 64px; align-items: center; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+    border: 1px solid var(--border); background: var(--surface);
+    border-radius: 999px; padding: 6px 12px; margin-bottom: 24px;
+  }
+  .badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--approved); }
+  h1 {
+    font-family: var(--font-display);
+    font-size: clamp(40px, 5.4vw, 64px);
+    font-weight: 800; line-height: 1.04; letter-spacing: -0.03em;
+    margin-bottom: 20px;
+  }
+  h1 .strike { position: relative; white-space: nowrap; }
+  h1 .strike::after {
+    content: ""; position: absolute; left: -2%; right: -2%; top: 54%;
+    height: 0.09em; background: var(--denied); border-radius: 2px;
+    transform: scaleX(0); transform-origin: left center;
+    animation: strike 0.5s cubic-bezier(0.7, 0, 0.2, 1) 1.1s forwards;
+  }
+  @keyframes strike { to { transform: scaleX(1); } }
+  .hero-sub { font-size: 18px; color: var(--muted); max-width: 46ch; margin-bottom: 32px; }
+  .hero-sub strong { color: var(--ink); font-weight: 600; }
+  .hero-ctas { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .hero-note { font-size: 13px; color: var(--faint); margin-top: 14px; font-family: var(--font-mono); }
+
+  /* ---------- The interrogation (signature) ---------- */
+  .phone {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; box-shadow: var(--shadow-lg);
+    padding: 20px; max-width: 430px; margin-left: auto; position: relative;
+  }
+  .phone-head { display: flex; align-items: center; gap: 10px; padding-bottom: 14px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+  .phone-head .logo-mark { width: 24px; height: 24px; font-size: 13px; border-radius: 6px; }
+  .phone-head .t { font-size: 13px; font-weight: 600; }
+  .phone-head .s { font-size: 11px; color: var(--faint); font-family: var(--font-mono); margin-left: auto; }
+  .bubble {
+    max-width: 85%; padding: 10px 14px; border-radius: 12px;
+    font-size: 13.5px; line-height: 1.5; margin-bottom: 10px;
+    opacity: 0; transform: translateY(8px);
+    animation: rise 0.45s ease forwards;
+  }
+  .bubble.a { background: #F4F4F5; border-bottom-left-radius: 4px; }
+  .bubble.u { background: var(--ink); color: #fff; border-bottom-right-radius: 4px; margin-left: auto; }
+  .bubble:nth-of-type(1) { animation-delay: 0.15s; }
+  .bubble:nth-of-type(2) { animation-delay: 0.55s; }
+  .bubble:nth-of-type(3) { animation-delay: 0.95s; }
+  @keyframes rise { to { opacity: 1; transform: translateY(0); } }
+  .verdict-card {
+    border: 1px solid #FECACA; background: var(--denied-bg);
+    border-radius: 12px; padding: 14px 16px; margin-top: 14px;
+    display: flex; align-items: center; gap: 12px;
+    opacity: 0; transform: scale(0.94) rotate(-1deg);
+    animation: stamp 0.35s cubic-bezier(0.2, 1.4, 0.4, 1) 1.5s forwards;
+  }
+  @keyframes stamp { to { opacity: 1; transform: scale(1) rotate(0deg); } }
+  .verdict-stamp {
+    font-family: var(--font-display); font-weight: 800; font-size: 18px;
+    letter-spacing: 0.06em; color: var(--denied);
+    border: 2px solid var(--denied); border-radius: 6px; padding: 2px 10px;
+    transform: rotate(-4deg);
+  }
+  .verdict-meta { font-size: 12px; color: var(--muted); line-height: 1.45; }
+  .verdict-meta b { color: var(--ink); font-family: var(--font-mono); }
+  .savings-chip {
+    position: absolute; right: -14px; top: -14px;
+    background: var(--surface); border: 1px solid var(--border);
+    box-shadow: var(--shadow-md); border-radius: 10px; padding: 8px 12px;
+    font-family: var(--font-mono); font-size: 12px; font-weight: 600;
+  }
+  .savings-chip .up { color: var(--approved); }
+
+  /* ---------- Sections ---------- */
+  section { padding: 72px 0; }
+  section.alt { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .eyebrow { font-family: var(--font-mono); font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+  h2 { font-family: var(--font-display); font-size: clamp(28px, 3.4vw, 40px); font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 16px; }
+  .section-sub { color: var(--muted); max-width: 60ch; margin-bottom: 40px; }
+
+  /* Stats band — the receipts */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+  .stat { background: var(--surface); padding: 26px 24px; }
+  .stat .n { font-family: var(--font-mono); font-size: 30px; font-weight: 600; letter-spacing: -0.02em; display: block; margin-bottom: 4px; }
+  .stat .n.red { color: var(--denied); }
+  .stat .l { font-size: 13px; color: var(--muted); }
+
+  /* How it works — a real sequence, so it's numbered */
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .step { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 26px; box-shadow: var(--shadow-sm); }
+  .step .k { font-family: var(--font-mono); font-size: 12px; color: var(--faint); display: block; margin-bottom: 14px; }
+  .step h3 { font-family: var(--font-display); font-size: 19px; font-weight: 800; margin-bottom: 8px; letter-spacing: -0.01em; }
+  .step p { font-size: 14px; color: var(--muted); }
+  .step p code { font-family: var(--font-mono); font-size: 12.5px; background: #F4F4F5; border: 1px solid var(--border); border-radius: 5px; padding: 1px 6px; color: var(--ink); }
+
+  /* Install */
+  .install-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: start; }
+  .install-steps { counter-reset: inst; list-style: none; }
+  .install-steps li { counter-increment: inst; display: flex; gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--border); }
+  .install-steps li:last-child { border-bottom: none; }
+  .install-steps li::before {
+    content: counter(inst);
+    font-family: var(--font-mono); font-size: 13px; font-weight: 600;
+    width: 28px; height: 28px; flex: 0 0 28px; border-radius: 8px;
+    background: var(--ink); color: #fff; display: grid; place-items: center;
+  }
+  .install-steps b { display: block; font-size: 15px; margin-bottom: 2px; }
+  .install-steps p { font-size: 14px; color: var(--muted); }
+  .install-steps code { font-family: var(--font-mono); font-size: 12.5px; background: #F4F4F5; border: 1px solid var(--border); border-radius: 5px; padding: 1px 6px; color: var(--ink); }
+  .terminal {
+    background: var(--ink); color: #E4E4E7; border-radius: 14px;
+    font-family: var(--font-mono); font-size: 13px; line-height: 1.7;
+    padding: 20px 22px; box-shadow: var(--shadow-md); overflow-x: auto;
+  }
+  .terminal .c { color: #71717A; }
+  .terminal .g { color: #4ADE80; }
+  .req { margin-top: 16px; font-size: 13px; color: var(--muted); font-family: var(--font-mono); }
+
+  /* Hexclave / account */
+  .account-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    padding: 40px; display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 40px; align-items: center;
+    box-shadow: var(--shadow-sm);
+  }
+  .account-card h2 { margin-bottom: 10px; }
+  .account-form { display: flex; gap: 10px; }
+  .account-form input {
+    flex: 1; font-family: var(--font-body); font-size: 14px;
+    border: 1px solid var(--border-strong); border-radius: var(--radius);
+    padding: 10px 14px; background: var(--surface); color: var(--ink);
+  }
+  .account-form input::placeholder { color: var(--faint); }
+  .account-status { margin-top: 12px; font-size: 13px; font-family: var(--font-mono); color: var(--muted); min-height: 20px; }
+  .powered { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--faint); font-family: var(--font-mono); margin-top: 16px; }
+
+  /* FAQ */
+  details { border-bottom: 1px solid var(--border); }
+  details summary {
+    cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center;
+    padding: 18px 0; font-weight: 600; font-size: 15px;
+  }
+  details summary::after { content: "+"; font-family: var(--font-mono); color: var(--faint); font-size: 18px; }
+  details[open] summary::after { content: "−"; }
+  details p { padding: 0 0 18px; font-size: 14px; color: var(--muted); max-width: 70ch; }
+
+  footer { padding: 40px 0 56px; }
+  .foot { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; color: var(--faint); font-size: 13px; }
+  .foot a { color: var(--muted); text-decoration: none; }
+  .foot a:hover { color: var(--ink); }
+
+  @media (max-width: 900px) {
+    .hero { padding: 56px 0 48px; }
+    .hero-grid { grid-template-columns: 1fr; gap: 48px; }
+    .phone { margin: 0 auto; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .steps { grid-template-columns: 1fr; }
+    .install-grid { grid-template-columns: 1fr; }
+    .account-card { grid-template-columns: 1fr; padding: 28px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .bubble, .verdict-card, h1 .strike::after { animation: none; opacity: 1; transform: none; }
+    h1 .strike::after { transform: scaleX(1); }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap nav-inner">
+    <a class="logo" href="#"><span class="logo-mark">🧑‍⚖️</span> SwiperNoSwiping</a>
+    <div class="nav-links">
+      <a class="plain" href="#how">How it works</a>
+      <a class="plain" href="#install">Install</a>
+      <a class="plain" href="https://github.com/Parth12358/SwiperNoSwiping-compiled">GitHub</a>
+      <a class="btn btn-primary" href="#install">Add to Chrome</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <span class="badge"><span class="dot"></span> Chrome extension · free · open source</span>
+      <h1>Your wallet has a lawyer now.<br>She saw you click <span class="strike">Buy&nbsp;Now</span>.</h1>
+      <p class="hero-sub">SwiperNoSwiping physically blocks checkout buttons and makes you justify the purchase to an AI who knows <strong>your budget, your savings goal, and every headphone you already own</strong>. Win the argument or keep your money.</p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary btn-lg" href="swipernoswiping-extension.zip" download>⬇&nbsp; Add to Chrome — it's free</a>
+        <a class="btn btn-outline btn-lg" href="#how">Watch it argue</a>
+      </div>
+      <p class="hero-note">Chrome 114+ · loads unpacked · no card required (that's the point)</p>
+    </div>
+
+    <div class="phone" aria-label="Example interrogation: a purchase gets denied">
+      <div class="savings-chip"><span class="up">↑ $348.00</span> saved · $2,619 total</div>
+      <div class="phone-head">
+        <span class="logo-mark">🧑‍⚖️</span>
+        <span class="t">Purchase interrogation</span>
+        <span class="s">turn 2/3</span>
+      </div>
+      <div class="bubble a">You've been denied this exact headphone before — and also the XM4s, AirPods Pro, and Bose QC45. What's different this time?</div>
+      <div class="bubble u">i just want an upgrade honestly</div>
+      <div class="bubble a">That's a $348 want, and you're $3,652 short on your Japan trip. Grab the $99 refurb and put the rest toward Tokyo.</div>
+      <div class="verdict-card">
+        <span class="verdict-stamp">DENIED</span>
+        <span class="verdict-meta">score <b>20/100</b> · the button stays dead ·<br>come back with a better reason</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<section class="alt">
+  <div class="wrap">
+    <div class="stats" role="list">
+      <div class="stat" role="listitem"><span class="n">$2,619</span><span class="l">saved by our first test user in week one</span></div>
+      <div class="stat" role="listitem"><span class="n red">11</span><span class="l">impulse purchases denied (four were headphones)</span></div>
+      <div class="stat" role="listitem"><span class="n">3</span><span class="l">questions max — then it rules, no filibuster</span></div>
+      <div class="stat" role="listitem"><span class="n">~2s</span><span class="l">per reply. Faster than your regret</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <p class="eyebrow">How it works</p>
+    <h2>Block. Interrogate. Verdict.</h2>
+    <p class="section-sub">It's a real courtroom procedure, minus the courtroom: the button dies first, then you make your case, then the ruling lands.</p>
+    <div class="steps">
+      <div class="step">
+        <span class="k">step 1 — the block</span>
+        <h3>Buy Now stops working</h3>
+        <p>On checkout pages, an invisible overlay swallows every buy-button click. No willpower required — the click physically cannot land.</p>
+      </div>
+      <div class="step">
+        <span class="k">step 2 — the interrogation</span>
+        <h3>Make your case</h3>
+        <p>An AI with your profile and purchase history asks what changed. It knows this is your <em>fifth</em> pair of headphones. You get three turns.</p>
+      </div>
+      <div class="step">
+        <span class="k">step 3 — the verdict</span>
+        <h3>Approved or denied</h3>
+        <p>A real reason (<code>mine broke, I work calls all day</code>) gets a green light and the click goes through. A vibe gets denied — with a cheaper recommendation attached.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="alt" id="install">
+  <div class="wrap">
+    <p class="eyebrow">Install</p>
+    <h2>Two minutes to a protected wallet</h2>
+    <p class="section-sub">We're not on the Chrome Web Store (yet) — you load it straight from source, like the discerning power user your bank statement says you are not.</p>
+    <div class="install-grid">
+      <ol class="install-steps">
+        <li><div><b>Download the extension</b><p><a href="swipernoswiping-extension.zip" download>Grab the zip</a> and unzip it anywhere you'll remember.</p></div></li>
+        <li><div><b>Open <code>chrome://extensions</code></b><p>Toggle <b>Developer mode</b> on (top-right corner).</p></div></li>
+        <li><div><b>Load unpacked</b><p>Click <b>Load unpacked</b> and select the unzipped <code>extension</code> folder.</p></div></li>
+        <li><div><b>Start the backend</b><p>The interrogator runs locally — your data never leaves your machine. Clone the repo and run the server (needs a free DeepSeek API key).</p></div></li>
+      </ol>
+      <div>
+        <div class="terminal">
+          <div class="c"># one-time setup</div>
+          <div><span class="g">$</span> git clone https://github.com/Parth12358/SwiperNoSwiping-compiled</div>
+          <div><span class="g">$</span> cd SwiperNoSwiping-compiled/server</div>
+          <div><span class="g">$</span> python3 -m venv .venv &amp;&amp; .venv/bin/pip install -r requirements.txt</div>
+          <div><span class="g">$</span> cp .env.example .env  <span class="c"># add your DEEPSEEK_API_KEY</span></div>
+          <div class="c"># every session</div>
+          <div><span class="g">$</span> .venv/bin/uvicorn main:app --port 8000</div>
+        </div>
+        <p class="req">requires: Chrome 114+ · Python 3.11+ · a DeepSeek API key · a shopping problem</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="account-card">
+      <div>
+        <p class="eyebrow">Accounts · coming online</p>
+        <h2>Keep your savings score everywhere</h2>
+        <p class="section-sub" style="margin-bottom:0">Create an account to sync your denials, savings total, and interrogation history across devices. User accounts run on Hexclave — auth, profiles, and analytics without us ever touching a password.</p>
+        <span class="powered">⚡ powered by <a href="https://www.hexclave.com">Hexclave</a></span>
+      </div>
+      <div>
+        <form class="account-form" id="hexclave-form">
+          <input type="email" id="hexclave-email" placeholder="you@example.com" aria-label="Email address" required>
+          <button class="btn btn-primary" type="submit">Create account</button>
+        </form>
+        <p class="account-status" id="hexclave-status"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="alt">
+  <div class="wrap">
+    <p class="eyebrow">Objections</p>
+    <h2>Asked and answered</h2>
+    <div>
+      <details>
+        <summary>Can't I just open DevTools and delete the overlay?</summary>
+        <p>Yes. If you're the kind of person who opens DevTools to buy headphones, you've earned them. This is a speed bump for the 0.4-second impulse click, not a prison.</p>
+      </details>
+      <details>
+        <summary>What if it blocks something I actually need?</summary>
+        <p>Medical, food, safety, and work-required items are approved instantly — no questions, score 100. And if anything ever breaks (server down, timeout, bad response), the extension fails open: the overlay comes off and your purchase goes through. It will never trap you on a checkout page.</p>
+      </details>
+      <details>
+        <summary>Where does my data go?</summary>
+        <p>Nowhere. The backend runs on your machine, history lives in a local SQLite file, and the only external call is the AI request to DeepSeek with the product info and your profile. No tracking, no ads targeting your weaknesses — the ad slot is a static joke.</p>
+      </details>
+      <details>
+        <summary>Which sites does it work on?</summary>
+        <p>Amazon and Best Buy today, plus a bundled demo page. The detector is two-layer (known selectors, then text matching), so more retailers are a manifest line away.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap foot">
+    <span>SwiperNoSwiping — built at a hackathon in 3 hours. Your wallet's lawyer bills $0/hr.</span>
+    <span><a href="https://github.com/Parth12358/SwiperNoSwiping-compiled">GitHub</a> · <a href="#install">Install</a> · <a href="HEXCLAVE_SETUP.md">Hexclave setup</a></span>
+  </div>
+</footer>
+
+<script src="hexclave-config.js"></script>
+<script type="module">
+  // Hexclave user infrastructure (auth/profiles) — @hexclave/js.
+  // Until a project ID is configured (see HEXCLAVE_SETUP.md), the form
+  // explains itself instead of pretending.
+  const form = document.getElementById('hexclave-form');
+  const status = document.getElementById('hexclave-status');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const projectId = window.HEXCLAVE_PROJECT_ID;
+    if (!projectId) {
+      status.textContent = 'Accounts launch soon — Hexclave project not connected yet (see HEXCLAVE_SETUP.md).';
+      return;
+    }
+    status.textContent = 'Connecting to Hexclave…';
+    try {
+      const { HexclaveClientApp } = await import('https://esm.sh/@hexclave/js');
+      const app = new HexclaveClientApp({ projectId, tokenStore: 'cookie' });
+      window.__hexclave = app; // sign-up flow continues per docs.hexclave.com
+      status.textContent = 'Hexclave connected — finishing sign-up…';
+    } catch (err) {
+      status.textContent = 'Hexclave unreachable right now — try again in a minute.';
+    }
+  });
+</script>
+</body>
+</html>
