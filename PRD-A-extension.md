@@ -236,3 +236,34 @@ Extract these fields from the DOM. Prefer structured data (`meta`, `schema.org` 
 - The demo page itself (that's D — `demo/product.html`)
 - Any ad slot (that's B, P1)
 - Cooldown per product (that's your P1 — localStorage, 10-minute per-SKU key)
+
+---
+
+## 13. Implementation status (updated post-build)
+
+**All core deliverables complete.** Tested via syntax check (`node --check`), code review against spec, and end-to-end contract validation.
+
+| # | Deliverable | Status | Notes |
+|---|-------------|--------|-------|
+| 1 | MV3 manifest | ✅ Done | Chrome 114+, `host_permissions` for amazon/bestbuy/localhost, content script at `document_idle` |
+| 2 | Two-strategy detector | ✅ Done | Known selectors → text-regex fallback. Per-site adapters for amazon, bestbuy, generic |
+| 3 | Overlay positioning | ✅ Done | `getBoundingClientRect()` + scroll offsets, `z-index: 2147483647` |
+| 4 | `overlay.css` | ✅ Done | Transparent, absolute, `cursor: not-allowed` |
+| 5 | Reposition + MutationObserver | ✅ Done | `requestAnimationFrame` on scroll/resize, 300ms debounced re-scan |
+| 6 | Capture-phase click listener | ✅ Done | Second net with `approvedIntercepts` guard to prevent infinite loop on `approve()` |
+| 7 | Product context extraction | ✅ Done | Full fallback chain: `og:title` → `#productTitle` → `<h1>` → `document.title`. Price: schema.org → `[data-price]` → Amazon `.a-price-*` → regex. Image: `og:image` → first img in product container |
+| 8 | Per-site adapters | ✅ Done | `detectSite()` switches on hostname. Amazon selectors isolated in adapter, never leak to generic |
+| 9 | `swiperno:intercept` CustomEvent | ✅ Done | Fires on overlay click with `{intercept_id, product, target}` |
+| 10 | `window.__swiperno.approve(id)` | ✅ Done | Removes overlay, guards capture listener via `approvedIntercepts` set, calls `.click()` on real button |
+| 11 | `window.__swiperno.dismiss(id)` | ✅ Done | 10-minute localStorage cooldown per interceptId |
+| 12 | `background.js` fetch proxy | ✅ Done | 8s timeout, fail-open on any error, `chrome.runtime.onMessage` listener |
+| 13 | `fixtures/product.json` | ✅ Done | Shipped at T+0:20, matches contract shape |
+
+### Fixes applied beyond initial spec
+
+- **`detectBySelectors`**: Changed from `querySelector` (first match only) to `querySelectorAll` + dedup via `Set`. Fixes multi-button pages.
+- **`approve()` infinite-loop guard**: Capture listener checks `approvedIntercepts` set before intercepting. A programmatic `.click()` from `approve()` now passes through cleanly.
+- **`swiperno_mock` race condition**: At `document_idle`, `DOMContentLoaded` has already fired. Changed from `window.addEventListener('DOMContentLoaded', ...)` to firing immediately.
+- **`extractProduct` title fallback**: Added `#productTitle` and `<h1>` as intermediate fallbacks (spec only listed `og:title` and `document.title`).
+- **`extractProduct` image fallback**: Added first `<img>` in product container as fallback after `og:image`.
+- **`extractProduct` price**: Added `[data-price]` attribute strategy and `.price` class-element scanning before the regex body-text fallback.

@@ -493,3 +493,51 @@ At T+2:15, you stop writing code. Your job is the demo:
 6. **Only edit your own files.** Coordinate with C on route handler placement. Don't open `llm.py` or `prompts.py`.
 7. **Fail open is C's responsibility.** But if you see a path in your code that could block a page, make it fail open too.
 8. **No feature additions after T+2:15.** Your job from then on is rehearsal.
+
+---
+
+## 15. Implementation status (updated post-build)
+
+**All deliverables complete.** Tested via `python3 -c` direct db.py calls, `curl` against live FastAPI server, and seed.py end-to-end.
+
+| # | Deliverable | Status | Notes |
+|---|-------------|--------|-------|
+| 1 | `schema.sql` DDL | ✅ Done | `users`, `purchases`, `turns` tables + index. Creates cleanly via `db.init()` |
+| 2 | `db.py` stubs at T+0:20 | ✅ Done | Function signatures frozen, then replaced with real SQLite |
+| 3 | `db.py` real implementations | ✅ Done | `init()`, `get_context()`, `start_purchase()`, `log_turn()`, `finalize()`, `stats()`, `get_profile()`, `put_profile()` — all tested |
+| 4 | `seed.py` | ✅ Done | User 1 (Alex), Japan trip goal, 12 purchases (9 denied / 3 approved), 4 headphone pattern, $2,266 saved |
+| 5 | `/api/stats/:user_id` | ✅ Done | Returns `{denied_count, approved_count, saved_cents, top_category}` — tested via curl |
+| 6 | `/api/profile/:user_id` GET + PUT | ✅ Done | Round-trips correctly. PUT upserts (update existing or insert new). Tested via curl |
+| 7 | `demo/product.html` | ✅ Done | Stable offline page with `#buy-now-button`, `?swiperno_mock=1` support |
+| 8 | `README.md` | ✅ Done | Clone → venv → pip → .env → seed → uvicorn → extension → demo |
+| 9 | Demo rehearsal assets | ✅ Done | Run-order checklist, 90-second script, rehearsal rules documented |
+
+### API test results (live server)
+
+```
+GET /api/stats/1
+→ {"denied_count":9,"approved_count":3,"saved_cents":226600,"top_category":"electronics"}
+
+GET /api/profile/1
+→ {"display_name":"Alex","income_band":"50k-100k","monthly_budget_cents":200000,
+   "savings_goal":"Japan trip","goal_target_cents":400000,"known_weakness":"mechanical keyboards"}
+
+PUT /api/profile/1  ← {"display_name":"Alex Updated",...}
+→ {"status":"ok"}
+
+GET /api/profile/1  (after PUT)
+→ {"display_name":"Alex Updated","income_band":"100k+",...}  ✅ round-trips
+```
+
+### Fixes applied beyond initial spec
+
+- **seed.py SQL column count**: Removed explicit `id` from INSERT column list (11 values vs 12 columns). SQLite auto-increments.
+- **seed.py index bug**: `denied_count`/`approved_count`/`saved_cents` summary calculations used wrong tuple indices (`p[9]` for verdict was actually score at index 9; `p[4]` for price was actually currency). Fixed to `p[8]` (verdict) and `p[3]` (price_cents).
+- **seed.py DB path**: Changed from `"server/swiperno.db"` to `"swiperno.db"` to match README workflow of `cd server && python ../seed.py`.
+- **db.py**: Added WAL mode, foreign keys pragma, `SWIPERNO_DB_PATH` env var override, `get_profile`/`put_profile` functions (in spec but missing from original stub list).
+- **main.py**: Wired `/api/stats/{user_id}`, `/api/profile/{user_id}` GET + PUT with proper HTTPException error handling. Route handlers delegate to `stats.py` → `db.py`.
+- **stats.py**: Full implementations of `get_stats()`, `get_profile()`, `update_profile()` delegating to `db.py`.
+
+### PRD calculation note
+
+The PRD §8 table lists denied prices summing to $2,274.00 (227400 cents). Actual sum of the prices listed in the PRD table is $2,266.00 (226600 cents) — an $8.00 discrepancy in the PRD itself. The code uses the actual prices from the table.
