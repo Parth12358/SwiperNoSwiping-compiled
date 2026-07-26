@@ -7,11 +7,14 @@
 (function () {
   let overlays = [];
   let observedButtons = new WeakSet();
+  let approvedIntercepts = new Set();    // interceptIds that are mid-approve — let clicks through
 
   // --- Overlay creation ---
 
   function createOverlay(button) {
     const rect = button.getBoundingClientRect();
+    const interceptId = 'int_' + Math.random().toString(36).substring(2, 10);
+
     const div = document.createElement('div');
     div.className = 'swiperno-overlay';
     div.style.left = `${rect.left + window.scrollX}px`;
@@ -25,7 +28,6 @@
       e.stopImmediatePropagation();
 
       const product = extractProduct(button);
-      const interceptId = 'int_' + Math.random().toString(36).substring(2, 10);
 
       document.dispatchEvent(new CustomEvent('swiperno:intercept', {
         detail: { intercept_id: interceptId, product, target: button },
@@ -33,7 +35,7 @@
     });
 
     document.body.appendChild(div);
-    overlays.push({ div, button });
+    overlays.push({ div, button, interceptId });
     observedButtons.add(button);
   }
 
@@ -83,17 +85,39 @@
 
   function extractProduct(button) {
     const site = window.__swipernoDetector.detectSite();
+
+    // Title: og:title → #productTitle → h1 → document.title
+    let title = null;
     const metaTitle = document.querySelector('meta[property="og:title"]');
-    const title = metaTitle ? metaTitle.getAttribute('content') : document.title;
+    if (metaTitle) title = metaTitle.getAttribute('content');
+    if (!title) {
+      const productTitleEl = document.querySelector('#productTitle');
+      if (productTitleEl) title = productTitleEl.innerText.trim();
+    }
+    if (!title) {
+      const h1 = document.querySelector('h1');
+      if (h1) title = h1.innerText.trim();
+    }
+    if (!title) title = document.title;
 
     const priceCents = extractPrice();
+
+    // Image: og:image → first img in product container → null
+    let imageUrl = null;
     const metaImage = document.querySelector('meta[property="og:image"]');
-    const imageUrl = metaImage ? metaImage.getAttribute('content') : null;
+    if (metaImage) imageUrl = metaImage.getAttribute('content');
+    if (!imageUrl) {
+      const container = button.closest('[class*="product" i], [id*="product" i], [class*="detail" i], [class*="pdp" i]');
+      if (container) {
+        const firstImg = container.querySelector('img');
+        if (firstImg) imageUrl = firstImg.src;
+      }
+    }
 
     const snippet = extractSnippet(button);
 
     return {
-      title,
+      title: title || null,
       price_cents: priceCents,
       currency: 'USD',
       url: window.location.href,
@@ -104,12 +128,21 @@
   }
 
   function extractPrice() {
+    // Try schema.org microdata
     const meta = document.querySelector('[itemprop="price"]');
     if (meta && meta.getAttribute('content')) {
       const val = parseFloat(meta.getAttribute('content'));
       if (!isNaN(val)) return Math.round(val * 100);
     }
 
+    // Try data-price attribute
+    const dataPrice = document.querySelector('[data-price]');
+    if (dataPrice) {
+      const val = parseFloat(dataPrice.getAttribute('data-price'));
+      if (!isNaN(val)) return Math.round(val * 100);
+    }
+
+    // Try Amazon-style .a-price-whole + .a-price-fraction
     const whole = document.querySelector('.a-price-whole');
     const fraction = document.querySelector('.a-price-fraction');
     if (whole) {
@@ -118,6 +151,17 @@
       if (!isNaN(w)) return w * 100 + f;
     }
 
+    // Try regex match on a price element near the button or in body
+    const priceEls = document.querySelectorAll('.price, [class*="price" i], [id*="price" i]');
+    for (const el of priceEls) {
+      const match = el.innerText.match(/\$?([\d,]+\.?\d{0,2})/);
+      if (match) {
+        const cents = Math.round(parseFloat(match[1].replace(/,/g, '')) * 100);
+        if (!isNaN(cents) && cents > 0) return cents;
+      }
+    }
+
+    // Last resort: scan body text
     const text = document.body.innerText;
     const match = text.match(/\$(\d{1,3}(?:,\d{3})*\.?\d{0,2})/);
     if (match) {
@@ -141,6 +185,13 @@
     const button = e.target.closest('button, input[type="submit"], a[role="button"]');
     if (!button) return;
 
+    // Check if this button is mid-approve — let it through
+    const overlay = overlays.find((o) => o.button === button);
+    if (overlay && approvedIntercepts.has(overlay.interceptId)) {
+      approvedIntercepts.delete(overlay.interceptId);
+      return; // let the click through
+    }
+
     const adapter = window.__swipernoDetector.getAdapter();
     const text = button.innerText || button.value || '';
     if (adapter.textRegex.test(text) && !observedButtons.has(button)) {
@@ -159,25 +210,24 @@
   }, true);
 
   // --- swiperno_mock support ---
+  // At document_idle, DOMContentLoaded has already fired — fire immediately.
 
   if (new URLSearchParams(window.location.search).get('swiperno_mock') === '1') {
-    window.addEventListener('DOMContentLoaded', () => {
-      document.dispatchEvent(new CustomEvent('swiperno:intercept', {
-        detail: {
-          intercept_id: 'int_mock_demo',
-          product: {
-            title: 'Sony WH-1000XM5 Wireless Headphones',
-            price_cents: 34800,
-            currency: 'USD',
-            url: window.location.href,
-            image_url: 'https://placehold.co/600x400/EEE/999?text=Sony+WH-1000XM5',
-            site: 'demo',
-            dom_snippet: 'Sony WH-1000XM5 Wireless Headphones. $348.00. Industry-leading noise canceling...',
-          },
-          target: null,
+    document.dispatchEvent(new CustomEvent('swiperno:intercept', {
+      detail: {
+        intercept_id: 'int_mock_demo',
+        product: {
+          title: 'Sony WH-1000XM5 Wireless Headphones',
+          price_cents: 34800,
+          currency: 'USD',
+          url: window.location.href,
+          image_url: 'https://placehold.co/600x400/EEE/999?text=Sony+WH-1000XM5',
+          site: 'demo',
+          dom_snippet: 'Sony WH-1000XM5 Wireless Headphones. $348.00. Industry-leading noise canceling...',
         },
-      }));
-    });
+        target: null,
+      },
+    }));
   }
 
   // --- A's external API for B ---
@@ -185,15 +235,32 @@
   window.__swiperno = {
     approve(interceptId) {
       const overlay = overlays.find((o) => o.interceptId === interceptId);
-      if (!overlay) return;
+      if (!overlay) {
+        console.warn('[swiperno] approve: no overlay found for', interceptId);
+        return;
+      }
+
+      // Mark as approved so the capture listener lets this click through
+      approvedIntercepts.add(interceptId);
+
+      // Remove the overlay
       overlay.div.remove();
       overlays = overlays.filter((o) => o !== overlay);
+
+      // Programmatically click the real button — capture listener sees the flag and passes
       overlay.button.click();
     },
 
     dismiss(interceptId) {
+      // 10-minute localStorage cooldown keyed by interceptId
       const cooldownKey = `swiperno:cooldown:${interceptId}`;
       localStorage.setItem(cooldownKey, Date.now().toString());
+
+      // Also mark the overlay so it stays but shows "cooldown" state
+      const overlay = overlays.find((o) => o.interceptId === interceptId);
+      if (overlay) {
+        overlay.div.style.cursor = 'not-allowed';
+      }
     },
   };
 

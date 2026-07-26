@@ -57,11 +57,15 @@ function getAdapter() {
 
 function detectBySelectors(selectors) {
   const results = [];
+  const seen = new Set();
   for (const sel of selectors) {
     try {
-      const el = document.querySelector(sel);
-      if (el && isVisible(el)) {
-        results.push(el);
+      const els = document.querySelectorAll(sel);
+      for (const el of els) {
+        if (!seen.has(el) && isVisible(el)) {
+          results.push(el);
+          seen.add(el);
+        }
       }
     } catch (_) {
       // invalid selector, skip

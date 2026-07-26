@@ -1,7 +1,7 @@
 """Seed the database with a demo user and purchase history."""
 import sqlite3
 
-DB = "server/swiperno.db"
+DB = "swiperno.db"
 
 def seed():
     conn = sqlite3.connect(DB)
