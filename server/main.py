@@ -347,3 +347,15 @@ def put_profile(user_id: int, fields: dict):
     except Exception as e:
         print(f"[profile] error: {e!r}")
         return {"user_id": user_id}
+
+
+# Serve the landing page (docs/) when it's shipped alongside the server —
+# the hosted deployment doubles as the website. Mounted LAST so /api/* routes
+# above always win.
+from pathlib import Path as _Path
+
+from fastapi.staticfiles import StaticFiles
+
+_docs_dir = _Path(__file__).resolve().parent.parent / "docs"
+if _docs_dir.is_dir():
+    app.mount("/", StaticFiles(directory=str(_docs_dir), html=True), name="site")

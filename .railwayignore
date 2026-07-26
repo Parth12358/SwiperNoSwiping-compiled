@@ -1,0 +1,10 @@
+.git
+extension
+demo
+server/.venv
+server/.env
+server/__pycache__
+server/tests
+*.db
+*.png
+*.md
