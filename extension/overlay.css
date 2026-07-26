@@ -1,0 +1,13 @@
+/* SwiperNoSwiping overlay — injected into product pages */
+
+.swiperno-overlay {
+  position: absolute;
+  z-index: 2147483647;
+  background: transparent;
+  cursor: not-allowed;
+  pointer-events: auto;
+  border: none;
+  outline: none;
+  margin: 0;
+  padding: 0;
+}

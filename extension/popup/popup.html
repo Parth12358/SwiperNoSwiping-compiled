@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SwiperNoSwiping</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div id="stats-panel">
+    <h1>SwiperNoSwiping</h1>
+    <div class="stat-row">
+      <span class="stat-label">DENIED</span>
+      <span class="stat-value" id="stat-denied">—</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">APPROVED</span>
+      <span class="stat-value" id="stat-approved">—</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">SAVED</span>
+      <span class="stat-value" id="stat-saved">—</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">TOP CATEGORY</span>
+      <span class="stat-value" id="stat-category">—</span>
+    </div>
+    <button id="btn-edit-profile">Edit Profile</button>
+  </div>
+
+  <div id="profile-panel" style="display:none">
+    <h2>Your Profile</h2>
+    <form id="profile-form">
+      <label>
+        Display name
+        <input type="text" name="display_name" required>
+      </label>
+      <label>
+        Income band
+        <select name="income_band" required>
+          <option value="">Select...</option>
+          <option value="under_50k">Under $50k</option>
+          <option value="50k_100k">$50k - $100k</option>
+          <option value="100k_200k">$100k - $200k</option>
+          <option value="over_200k">Over $200k</option>
+        </select>
+      </label>
+      <label>
+        Monthly budget ($)
+        <input type="number" name="monthly_budget_dollars" required min="0" step="1" placeholder="2000">
+      </label>
+      <label>
+        Savings goal
+        <input type="text" name="savings_goal" required placeholder="Japan trip">
+      </label>
+      <label>
+        Goal target ($)
+        <input type="number" name="goal_target_dollars" required min="0" step="1" placeholder="4000">
+      </label>
+      <label>
+        Known weakness
+        <input type="text" name="known_weakness" required placeholder="mechanical keyboards">
+      </label>
+      <div class="form-actions">
+        <button type="submit">Save</button>
+        <button type="button" id="btn-back">Back</button>
+      </div>
+    </form>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

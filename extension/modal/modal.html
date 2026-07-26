@@ -1,0 +1,47 @@
+<!-- SwiperNoSwiping — Modal UI -->
+<!-- Injected into a shadow DOM root by modal.js -->
+
+<div id="swiperno-modal">
+  <div id="swiperno-overlay"></div>
+  <div id="swiperno-container">
+
+    <div id="swiperno-state-loading" class="state">
+      <div class="skeleton-bar"></div>
+      <div class="skeleton-bar short"></div>
+      <p class="loading-text">Just a moment...</p>
+    </div>
+
+    <div id="swiperno-state-question" class="state" style="display:none">
+      <div id="swiperno-transcript"></div>
+      <div id="swiperno-turn-counter"></div>
+      <div id="swiperno-input-area">
+        <textarea id="swiperno-input" placeholder="Type your justification..." rows="3"></textarea>
+        <button id="swiperno-submit">Submit</button>
+      </div>
+    </div>
+
+    <div id="swiperno-state-approved" class="state" style="display:none">
+      <div id="swiperno-transcript-final"></div>
+      <div class="verdict verdict-approved">
+        <div class="verdict-icon">&#x2714;</div>
+        <div class="verdict-text">Go ahead. Purchase approved.</div>
+      </div>
+    </div>
+
+    <div id="swiperno-state-denied" class="state" style="display:none">
+      <div id="swiperno-transcript-final-denied"></div>
+      <div class="verdict verdict-denied">
+        <div class="verdict-icon">&#x2718;</div>
+        <div class="verdict-text">Denied.</div>
+        <div class="verdict-savings" id="swiperno-savings-counter"></div>
+        <div class="verdict-cooldown">Try again in 10 minutes.</div>
+      </div>
+    </div>
+
+    <div id="swiperno-ad-slot" style="display:none">
+      <div class="ad-label">sponsored</div>
+      <div id="swiperno-ad-content"></div>
+    </div>
+
+  </div>
+</div>

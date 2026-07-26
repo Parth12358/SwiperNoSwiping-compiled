@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta property="og:title" content="Sony WH-1000XM5 Wireless Headphones">
+  <meta property="og:image" content="https://placehold.co/600x400/EEE/999?text=Sony+WH-1000XM5">
+  <title>Sony WH-1000XM5 — Demo</title>
+  <style>
+    body { font-family: system-ui; max-width: 600px; margin: 40px auto; padding: 0 20px; }
+    .price { font-size: 28px; font-weight: bold; color: #B12704; }
+    #buy-now-button { background: #FFD814; border: none; padding: 12px 48px; font-size: 16px; border-radius: 8px; cursor: pointer; }
+    img { max-width: 100%; }
+  </style>
+</head>
+<body>
+  <img src="https://placehold.co/600x400/EEE/999?text=Sony+WH-1000XM5" alt="Sony WH-1000XM5" width="600">
+  <h1 id="productTitle">Sony WH-1000XM5 Wireless Headphones</h1>
+  <p class="price">$348.00</p>
+  <p>Industry-leading noise canceling with Auto NC Optimizer. Crystal clear hands-free calling. 30-hour battery life.</p>
+  <button id="buy-now-button" name="submit.buy-now">Buy Now</button>
+  
+  <script>
+    if (new URLSearchParams(window.location.search).get('swiperno_mock') === '1') {
+      window.addEventListener('DOMContentLoaded', () => {
+        document.dispatchEvent(new CustomEvent('swiperno:intercept', { detail: {
+          intercept_id: 'int_mock_demo',
+          product: {
+            title: 'Sony WH-1000XM5 Wireless Headphones',
+            price_cents: 34800,
+            currency: 'USD',
+            url: window.location.href,
+            image_url: 'https://placehold.co/600x400/EEE/999?text=Sony+WH-1000XM5',
+            site: 'demo',
+            dom_snippet: 'Sony WH-1000XM5 Wireless Headphones. $348.00. Industry-leading noise canceling...'
+          },
+          target: null
+        }}));
+      });
+    }
+  </script>
+</body>
+</html>

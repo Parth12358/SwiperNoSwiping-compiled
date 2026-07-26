@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "SwiperNoSwiping",
+  "version": "0.1.0",
+  "description": "Your wallet now has a lawyer, and the lawyer thinks you're lying.",
+  "minimum_chrome_version": "114",
+  "permissions": [
+    "storage",
+    "scripting"
+  ],
+  "host_permissions": [
+    "http://localhost:8000/*",
+    "https://www.amazon.com/*",
+    "https://www.bestbuy.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.amazon.com/*", "https://www.bestbuy.com/*", "file://*/demo/product.html"],
+      "js": ["config.js", "detector.js", "content.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["modal/*", "popup/*"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "SwiperNoSwiping"
+  },
+  "icons": {}
+}
