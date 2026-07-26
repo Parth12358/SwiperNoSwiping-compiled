@@ -74,15 +74,20 @@ async def _validate_key():
     try:
         import asyncio
 
+        # Validate AND pre-warm the exact production path (JSON mode, thinking
+        # off) — a cold first JSON call can blow the 8s budget and fail open
+        # on the user's first click.
         resp = await asyncio.wait_for(
             llm._get_client().chat.completions.create(
                 model=config.DEEPSEEK_MODEL,
-                messages=[{"role": "user", "content": "ping"}],
-                max_tokens=1,
+                messages=[{"role": "user", "content": 'Respond ONLY with a json object. Example: {"ok": true}'}],
+                response_format={"type": "json_object"},
+                max_tokens=30,
+                extra_body=llm._THINKING_OFF,
             ),
-            timeout=10,
+            timeout=15,
         )
-        print(f"[startup] DeepSeek key valid, model={config.DEEPSEEK_MODEL}, status=200", flush=True)
+        print(f"[startup] DeepSeek key valid + JSON path warmed, model={config.DEEPSEEK_MODEL}, status=200", flush=True)
     except Exception as e:
         print(f"[startup] DEEPSEEK_API_KEY INVALID or model error: {e!r}", flush=True)
         print("[startup] Server running in fail-open mode. All interrogations will approve.", flush=True)
@@ -147,6 +152,11 @@ def _normalize(raw, final_turn):
 
     if verdict != "pending" and score is not None:
         verdict = "approved" if score >= config.APPROVE_THRESHOLD else "denied"
+
+    if not final_turn and verdict == "denied":
+        # Denials only land on the final turn — before that, keep the
+        # conversation going so the user always gets to argue their case.
+        verdict, score = "pending", None
 
     if final_turn and verdict == "pending":
         # No pending past the final turn — round down to denied (PRD-C §9).

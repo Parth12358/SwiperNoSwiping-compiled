@@ -7,6 +7,15 @@
 (function () {
   let overlays = [];
   let observedButtons = new WeakSet();
+  // interceptId -> { div|null, button }. Both the overlay path and the
+  // capture-phase fallback register here so approve() can always resolve
+  // the real button to click.
+  const interceptMap = new Map();
+
+  // Denial cooldown per page. 0 = off (no lockout; the overlay just stays and
+  // the user can argue again immediately). Set COOLDOWN_MINUTES in config.js.
+  const COOLDOWN_MS =
+    ((window.__SWIPERNO_CONFIG && window.__SWIPERNO_CONFIG.COOLDOWN_MINUTES) || 0) * 60 * 1000;
 
   // --- Overlay creation ---
 
@@ -19,13 +28,15 @@
     div.style.width = `${rect.width}px`;
     div.style.height = `${rect.height}px`;
 
+    const interceptId = 'int_' + Math.random().toString(36).substring(2, 10);
+    interceptMap.set(interceptId, { div, button });
+
     div.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
       e.stopImmediatePropagation();
 
       const product = extractProduct(button);
-      const interceptId = 'int_' + Math.random().toString(36).substring(2, 10);
 
       document.dispatchEvent(new CustomEvent('swiperno:intercept', {
         detail: { intercept_id: interceptId, product },
@@ -64,10 +75,17 @@
     const buttons = window.__swipernoDetector.detectButtons();
     for (const btn of buttons) {
       if (observedButtons.has(btn)) continue;
-      const cooldownKey = 'swiperno:cooldown:' + btoa(window.location.href).substring(0, 32);
-      const cooldown = localStorage.getItem(cooldownKey);
-      if (cooldown && (Date.now() - parseInt(cooldown, 10) < 10 * 60 * 1000)) continue;
-      createOverlay(btn);
+      if (COOLDOWN_MS > 0) {
+        const cooldownKey = 'swiperno:cooldown:' + btoa(window.location.href).substring(0, 32);
+        const cooldown = localStorage.getItem(cooldownKey);
+        if (cooldown && (Date.now() - parseInt(cooldown, 10) < COOLDOWN_MS)) continue;
+      }
+      try {
+        createOverlay(btn);
+      } catch (err) {
+        // One bad button must not kill protection for the rest of the page.
+        console.warn('[swiperno] overlay failed for a button:', err);
+      }
     }
   }
 
@@ -172,6 +190,8 @@
 
       const product = extractProduct(button);
       const interceptId = 'int_' + Math.random().toString(36).substring(2, 10);
+      // Register so approve(interceptId) can click the real button later.
+      interceptMap.set(interceptId, { div: null, button });
 
       document.dispatchEvent(new CustomEvent('swiperno:intercept', {
         detail: { intercept_id: interceptId, product },
@@ -202,22 +222,25 @@
 
   window.__swiperno = {
     approve(interceptId) {
-      const idx = overlays.findIndex((o) => o.interceptId === interceptId);
-      if (idx === -1) return;
-      const overlay = overlays[idx];
-      overlay.div.remove();
-      overlays.splice(idx, 1);
-      overlay.button.click();
+      const entry = interceptMap.get(interceptId);
+      if (!entry) return;
+      if (entry.div) {
+        entry.div.remove();
+        const idx = overlays.findIndex((o) => o.interceptId === interceptId);
+        if (idx !== -1) overlays.splice(idx, 1);
+      }
+      interceptMap.delete(interceptId);
+      entry.button.click();
     },
 
     dismiss(interceptId) {
-      const idx = overlays.findIndex((o) => o.interceptId === interceptId);
-      if (idx !== -1) {
-        overlays[idx].div.remove();
-        overlays.splice(idx, 1);
+      // Denied: the overlay STAYS so the button remains blocked (PRD §9.1).
+      // Clicking again reopens the interrogation — no lockout unless a
+      // cooldown is configured in config.js.
+      if (COOLDOWN_MS > 0) {
+        const cooldownKey = 'swiperno:cooldown:' + btoa(window.location.href).substring(0, 32);
+        localStorage.setItem(cooldownKey, Date.now().toString());
       }
-      const cooldownKey = 'swiperno:cooldown:' + btoa(window.location.href).substring(0, 32);
-      localStorage.setItem(cooldownKey, Date.now().toString());
     },
   };
 
