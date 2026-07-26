@@ -3,7 +3,8 @@
 // Fail-open on any error: the extension must never trap a user on a page.
 
 const MOCK_BACKEND = false;  // Flip to true for local dev without server
-const BACKEND_URL = 'http://localhost:8000';
+// Hosted hackathon brain (stateless). Self-hosters: http://localhost:8000.
+const BACKEND_URL = 'https://swipernoswiping-production.up.railway.app';
 const TIMEOUT_MS = 8000;
 
 async function proxyFetch(path, options = {}) {

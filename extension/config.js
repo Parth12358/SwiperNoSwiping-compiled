@@ -2,7 +2,9 @@
 // Edit locally. Do not commit changes to mock flags.
 
 const CONFIG = {
-  BACKEND_URL: 'http://localhost:8000',
+  // Hosted hackathon brain (stateless — stores nothing). Self-hosters:
+  // point this back at http://localhost:8000.
+  BACKEND_URL: 'https://swipernoswiping-production.up.railway.app',
 
   // Minutes a denied product's page stays locked out. 0 = no lockout: the
   // overlay stays up and the user can re-argue immediately.

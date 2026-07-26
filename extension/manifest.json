@@ -9,6 +9,7 @@
     "scripting"
   ],
   "host_permissions": [
+    "https://swipernoswiping-production.up.railway.app/*",
     "http://localhost:8000/*",
     "https://www.amazon.com/*",
     "https://www.bestbuy.com/*"
