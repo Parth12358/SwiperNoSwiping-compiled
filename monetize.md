@@ -208,3 +208,34 @@ def get_or_create_user(hexclave_user_id: str) -> int:
 | Use REST API (not SDK) on landing page | This project has no Node.js/React. Vanilla JS + HexClave REST API = no build step, no framework lock-in. |
 | Validate on backend via REST API | The server is Python FastAPI. No JS SDK available. HexClave's REST API is SDK-equivalent. |
 | Popup validates key locally (not through our backend) | Avoids chicken-and-egg (need a key to validate a key). HexClave's `/check` endpoint is the source of truth. |
+
+---
+
+## Idea: Channel3 for Smarter-Alternative Recommendations
+
+[trychannel3.com](https://trychannel3.com/) — an "agentic commerce" product API: 100M+ products, real-time pricing, deep metadata, built for AI agents to search and recommend. Free tier to start; docs at [docs.trychannel3.com](https://docs.trychannel3.com).
+
+**The idea:** wire their entire product API into the interrogation flow. Right now the agent only blocks a purchase. With Channel3 it can also *replace* it — when someone is about to buy something needlessly expensive or dumb, the agent researches the real catalog and automatically recommends something that actually fits their needs, cheaper.
+
+```
+User hits "Buy" on a $400 espresso machine
+        ↓
+Extension detects purchase → modal opens → LLM interrogates
+        ↓
+LLM extracts the ACTUAL need ("I drink one coffee a day")
+        ↓
+Query Channel3 API with that need + a sane price ceiling
+        ↓
+Modal shows: "You don't need this. Here are 3 that do the job for $60."
+        ↓
+User buys the smart thing instead of nothing (or nothing at all — both are wins)
+```
+
+**Why it fits:**
+
+| | |
+|---|---|
+| Turns a nag into a helper | The extension stops being pure friction — it saves money *and* still gets you the thing |
+| Real data, not LLM hallucination | Channel3 returns live products and prices, so recommendations are actually buyable |
+| Second revenue line | Their built-in monetization (affiliate on redirected purchases) means the extension can earn on the *alternative* it recommends — subscription + commission, not just subscription |
+| Cheap to demo | Free API tier, one HTTP call from `server/llm.py` after the interrogation step |
