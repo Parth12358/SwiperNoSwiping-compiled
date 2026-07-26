@@ -112,7 +112,7 @@
       || (h1 ? h1.innerText : null)
       || document.title;
 
-    const priceCents = extractPrice();
+    const priceCents = extractPrice(button);
     let imageUrl = null;
     const metaImage = document.querySelector('meta[property="og:image"]');
     if (metaImage) imageUrl = metaImage.getAttribute('content');
@@ -137,32 +137,64 @@
     };
   }
 
-  function extractPrice() {
-    const dataPrice = document.querySelector('[data-price]');
-    if (dataPrice && dataPrice.dataset.price) {
-      const val = parseFloat(dataPrice.dataset.price);
-      if (!isNaN(val)) return Math.round(val * 100);
+  function _parseMoney(text) {
+    if (!text) return null;
+    const m = String(text).match(/(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?)/);
+    if (!m) return null;
+    const val = parseFloat(m[1].replace(/,/g, ''));
+    return isNaN(val) ? null : Math.round(val * 100);
+  }
+
+  function extractPrice(button) {
+    // PRD §9.1: unparseable -> null, never guess. A wrong price poisons the
+    // whole interrogation (the AI argues about the wrong number), so every
+    // lookup is scoped to the BUYBOX / product container — never the cart
+    // rail, sponsored carousels, or the page-wide first "$X".
+
+    // 1. Amazon's canonical current price: buybox .a-offscreen holds the full
+    //    "$49.99" string. :not(.a-text-price) skips struck-through list prices.
+    const amazonBuybox = [
+      '#corePrice_feature_div .a-price:not(.a-text-price) .a-offscreen',
+      '#corePriceDisplay_desktop_feature_div .a-price:not(.a-text-price) .a-offscreen',
+      '#apex_desktop .a-price:not(.a-text-price) .a-offscreen',
+      '#price_inside_buybox',
+    ];
+    for (const sel of amazonBuybox) {
+      const cents = _parseMoney(document.querySelector(sel)?.textContent);
+      if (cents !== null) return cents;
     }
 
-    const meta = document.querySelector('[itemprop="price"]');
-    if (meta && meta.getAttribute('content')) {
-      const val = parseFloat(meta.getAttribute('content'));
-      if (!isNaN(val)) return Math.round(val * 100);
+    // 2. The clicked button's own product container (works on any retailer).
+    const container = button && button.closest(
+      '#buybox, [id*="buybox" i], [class*="buybox" i], [class*="product" i], [class*="pdp" i], [id*="product" i], [class*="detail" i]'
+    );
+    if (container) {
+      const cents =
+        _parseMoney(container.querySelector('.a-price:not(.a-text-price) .a-offscreen')?.textContent) ??
+        _parseMoney(container.querySelector('[itemprop="price"]')?.getAttribute('content')) ??
+        _parseMoney(container.querySelector('[data-price]')?.dataset.price) ??
+        (() => {
+          const whole = container.querySelector('.a-price:not(.a-text-price) .a-price-whole');
+          if (!whole) return null;
+          const frac = container.querySelector('.a-price:not(.a-text-price) .a-price-fraction');
+          const w = parseInt(whole.textContent.replace(/[^0-9]/g, ''), 10);
+          const f = frac ? parseInt(frac.textContent.replace(/[^0-9]/g, ''), 10) : 0;
+          return isNaN(w) ? null : w * 100 + (isNaN(f) ? 0 : f);
+        })() ??
+        _parseMoney((container.innerText.match(/\$(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?)/) || [])[1]);
+      if (cents !== null) return cents;
     }
 
-    const whole = document.querySelector('.a-price-whole');
-    const fraction = document.querySelector('.a-price-fraction');
-    if (whole) {
-      const w = parseInt(whole.innerText.replace(/[^0-9]/g, ''), 10);
-      const f = fraction ? parseInt(fraction.innerText.replace(/[^0-9]/g, ''), 10) : 0;
-      if (!isNaN(w)) return w * 100 + f;
-    }
+    // 3. Page-level structured data only (meta tags are per-product, unlike
+    //    the first .a-price-whole in the DOM, which is often the cart rail).
+    const cents =
+      _parseMoney(document.querySelector('meta[property="product:price:amount"]')?.getAttribute('content')) ??
+      _parseMoney(document.querySelector('meta[property="og:price:amount"]')?.getAttribute('content')) ??
+      _parseMoney(document.querySelector('[itemprop="price"]')?.getAttribute('content'));
+    if (cents !== null) return cents;
 
-    const match = document.body.innerText.match(/\$(\d{1,3}(?:,\d{3})*\.?\d{0,2})/);
-    if (match) {
-      return Math.round(parseFloat(match[1].replace(/,/g, '')) * 100);
-    }
-
+    // No confident price -> null. Backend renders "unknown price" and the AI
+    // asks instead of arguing about a number that belongs to the cart rail.
     return null;
   }
 
