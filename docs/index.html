@@ -210,6 +210,15 @@
   }
   .account-form input::placeholder { color: var(--faint); }
   .account-status { margin-top: 12px; font-size: 13px; font-family: var(--font-mono); color: var(--muted); min-height: 20px; }
+  .account-status a { color: var(--muted); }
+  .signedin-line { font-size: 14px; margin-bottom: 14px; }
+  .signedin-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  #hx-pro-badge {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    letter-spacing: 0.08em; color: var(--approved);
+    border: 1px solid var(--approved); border-radius: 999px;
+    padding: 3px 9px; margin-left: 8px; vertical-align: middle;
+  }
   .powered { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--faint); font-family: var(--font-mono); margin-top: 16px; }
 
   /* FAQ */
@@ -361,10 +370,20 @@
         <span class="powered">⚡ powered by <a href="https://www.hexclave.com">Hexclave</a></span>
       </div>
       <div>
-        <form class="account-form" id="hexclave-form">
-          <input type="email" id="hexclave-email" placeholder="you@example.com" aria-label="Email address" required>
-          <button class="btn btn-primary" type="submit">Create account</button>
-        </form>
+        <div id="hexclave-signedout">
+          <form class="account-form" id="hexclave-form">
+            <input type="email" id="hexclave-email" placeholder="you@example.com" aria-label="Email address" required>
+            <button class="btn btn-primary" type="submit">Create account</button>
+          </form>
+          <p class="account-status"><a href="#" id="hx-signin">Already have an account? Sign in</a></p>
+        </div>
+        <div id="hexclave-signedin" style="display:none">
+          <p class="signedin-line">Signed in as <b id="hx-user"></b> <span id="hx-pro-badge" style="display:none">PRO · lawyer on retainer</span></p>
+          <div class="signedin-actions">
+            <button class="btn btn-primary" id="hx-pro-btn">Retain the lawyer — $5</button>
+            <button class="btn btn-outline" id="hx-signout">Sign out</button>
+          </div>
+        </div>
         <p class="account-status" id="hexclave-status"></p>
       </div>
     </div>
@@ -405,38 +424,116 @@
 
 <script src="hexclave-config.js"></script>
 <script type="module">
-  // Hexclave user infrastructure (auth/profiles) — @hexclave/js, cloud setup.
-  // Hosted-pages flow per docs.hexclave.com: init the client app, then
-  // redirectToSignUp() sends the visitor to Hexclave's hosted sign-up.
-  const form = document.getElementById('hexclave-form');
-  const status = document.getElementById('hexclave-status');
-  const submitBtn = form.querySelector('button[type="submit"]');
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const projectId = window.HEXCLAVE_PROJECT_ID;
-    if (!projectId) {
-      status.textContent = 'Accounts launch soon — Hexclave project not connected yet (see HEXCLAVE_SETUP.md).';
+  // Hexclave user infrastructure — @hexclave/js, cloud setup, hosted pages.
+  // Full auth round-trip: init on load, detect session, hosted sign-up /
+  // sign-in / sign-out, and checkout for the "lawyer_retainer" product.
+  const $ = (id) => document.getElementById(id);
+  const status = $('hexclave-status');
+  const PRODUCT_ID = 'lawyer_retainer';
+
+  let app = null;
+  let user = null;
+
+  async function initHexclave() {
+    if (!window.HEXCLAVE_PROJECT_ID) {
+      status.textContent = 'Accounts launch soon — Hexclave project not connected yet.';
       return;
     }
-    submitBtn.disabled = true;
-    status.textContent = 'Opening secure sign-up…';
     try {
       // Version pinned so a new SDK release can't break the live page.
       const { HexclaveClientApp } = await import('https://esm.sh/@hexclave/js@1.0.67');
-      const app = new HexclaveClientApp({
-        projectId,
+      const here = location.origin + location.pathname;
+      app = new HexclaveClientApp({
+        projectId: window.HEXCLAVE_PROJECT_ID,
         baseUrl: window.HEXCLAVE_API_URL,
         tokenStore: 'cookie',
-        urls: { default: { type: 'hosted' } },
+        // Hosted auth pages; every post-auth redirect returns to THIS page,
+        // on whichever domain (github.io or railway) it's being viewed.
+        urls: {
+          default: { type: 'hosted' },
+          afterSignIn: here,
+          afterSignUp: here,
+          afterSignOut: here,
+          home: here,
+        },
       });
       window.__hexclave = app;
+      user = await app.getUser();
+      if (user) await renderSignedIn();
+    } catch (err) {
+      console.error('[hexclave] init failed:', err);
+    }
+  }
+
+  async function renderSignedIn() {
+    $('hexclave-signedout').style.display = 'none';
+    $('hexclave-signedin').style.display = 'block';
+    $('hx-user').textContent = user.displayName || user.primaryEmail || 'mystery shopper';
+    try {
+      const products = await user.listProducts();
+      const ownsPro = products.some((p) => p.id === PRODUCT_ID && p.quantity > 0);
+      $('hx-pro-badge').style.display = ownsPro ? 'inline-block' : 'none';
+      $('hx-pro-btn').style.display = ownsPro ? 'none' : 'inline-flex';
+    } catch (err) {
+      // Payments app not enabled yet — keep the button, it explains on click.
+      console.warn('[hexclave] products unavailable:', err);
+    }
+  }
+
+  $('hexclave-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!app) {
+      status.textContent = 'Accounts launch soon — Hexclave project not connected yet.';
+      return;
+    }
+    status.textContent = 'Opening secure sign-up…';
+    try {
       await app.redirectToSignUp();
     } catch (err) {
       console.error('[hexclave]', err);
       status.textContent = 'Hexclave unreachable right now — try again in a minute.';
-      submitBtn.disabled = false;
     }
   });
+
+  $('hx-signin').addEventListener('click', async (e) => {
+    e.preventDefault();
+    if (!app) return;
+    status.textContent = 'Opening secure sign-in…';
+    try {
+      await app.redirectToSignIn();
+    } catch (err) {
+      status.textContent = 'Hexclave unreachable right now — try again in a minute.';
+    }
+  });
+
+  $('hx-signout').addEventListener('click', async () => {
+    if (!app) return;
+    try {
+      await app.redirectToSignOut();
+    } catch (err) {
+      status.textContent = 'Sign-out hiccup — refresh and try again.';
+    }
+  });
+
+  $('hx-pro-btn').addEventListener('click', async () => {
+    if (!user) return;
+    const btn = $('hx-pro-btn');
+    btn.disabled = true;
+    status.textContent = 'Opening checkout…';
+    try {
+      const checkoutUrl = await user.createCheckoutUrl({
+        productId: PRODUCT_ID,
+        returnUrl: location.href,
+      });
+      location.href = checkoutUrl;
+    } catch (err) {
+      console.error('[hexclave] checkout:', err);
+      status.textContent = 'Payments are warming up (Stripe onboarding pending) — check back soon.';
+      btn.disabled = false;
+    }
+  });
+
+  initHexclave();
 </script>
 </body>
 </html>
