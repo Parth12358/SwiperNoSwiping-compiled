@@ -10,11 +10,13 @@ Session state is a module-level dict (PRD-C deliverable 8). Server restart →
 sessions vanish. That is acceptable for the demo.
 """
 
+import time
 import uuid
+from collections import deque
 from contextlib import asynccontextmanager
 from typing import Optional
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -98,23 +100,68 @@ class InterrogateRequest(BaseModel):
     product: dict = {}
     session_id: Optional[str] = None
     message: Optional[str] = None
+    # Client-carried context (hosted/multi-user mode): {profile, recent, stats}
+    # from the extension's chrome.storage. When present, the server is
+    # STATELESS — no db reads or writes; each user's data stays on their machine.
+    context: Optional[dict] = None
 
 
-def _new_session(user_id, product):
+def _new_session(user_id, product, context=None):
     session_id = "s_" + uuid.uuid4().hex[:12]
-    ctx = db.get_context(user_id)
+    if isinstance(context, dict):
+        profile = context.get("profile") or {}
+        recent = context.get("recent") or []
+        purchase_id = None  # client-side storage owns the record
+        client_stats = context.get("stats") or {}
+    else:
+        ctx = db.get_context(user_id)
+        profile = ctx.get("profile") or {}
+        recent = ctx.get("recent") or []
+        purchase_id = db.start_purchase(user_id, product or {})
+        client_stats = None
     session = {
         "id": session_id,
         "user_id": user_id,
         "product": product or {},
-        "purchase_id": db.start_purchase(user_id, product or {}),
-        "profile": ctx.get("profile") or {},
-        "recent": ctx.get("recent") or [],
+        "purchase_id": purchase_id,
+        "client_stats": client_stats,
+        "profile": profile,
+        "recent": recent,
         "history": [],  # chat messages only: {"role": "assistant"|"user", "content": str}
         "turn": 0,  # assistant turns produced so far
     }
     sessions[session_id] = session
     return session
+
+
+# --- Rate limiting (hosted mode: one shared DeepSeek key pays for everyone) ---
+# Per-IP sliding windows. On limit we FAIL OPEN (approve) instead of erroring:
+# never trap anyone on a checkout page, never burn the key on a hammering client.
+
+RATE_LIMITS = ((60, 8), (3600, 40))  # (window seconds, max requests)
+_hits: dict = {}
+
+
+def _client_ip(request):
+    fwd = request.headers.get("x-forwarded-for")
+    if fwd:
+        return fwd.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+def _rate_limited(ip):
+    now = time.time()
+    bucket = _hits.setdefault(ip, deque())
+    longest = RATE_LIMITS[-1][0]
+    while bucket and now - bucket[0] > longest:
+        bucket.popleft()
+    for window, limit in RATE_LIMITS:
+        if sum(1 for t in bucket if now - t <= window) >= limit:
+            return True
+    bucket.append(now)
+    if len(_hits) > 10000:  # crude memory cap
+        _hits.clear()
+    return False
 
 
 # The hard-approve rule (PRD §10): the model classifies `category` in the same
@@ -175,7 +222,10 @@ def _last_user_message(history):
 
 def _fail_open_payload(req):
     try:
-        saved = db.stats(req.user_id).get("saved_cents", 0)
+        if isinstance(req.context, dict) and isinstance(req.context.get("stats"), dict):
+            saved = int(req.context["stats"].get("saved_cents") or 0)
+        else:
+            saved = db.stats(req.user_id).get("saved_cents", 0)
     except Exception:
         saved = 0
     return {
@@ -193,11 +243,12 @@ async def _interrogate(req: InterrogateRequest):
     if req.session_id and req.session_id in sessions:
         session = sessions[req.session_id]
     else:
-        session = _new_session(req.user_id, req.product)
+        session = _new_session(req.user_id, req.product, req.context)
 
     if req.message:
         session["history"].append({"role": "user", "content": req.message})
-        db.log_turn(session["purchase_id"], session["turn"], "user", req.message)
+        if session["purchase_id"] is not None:
+            db.log_turn(session["purchase_id"], session["turn"], "user", req.message)
 
     this_turn = session["turn"] + 1  # the assistant turn being produced now
     system = prompts.system_prompt(
@@ -215,18 +266,29 @@ async def _interrogate(req: InterrogateRequest):
 
     session["turn"] = this_turn
     session["history"].append({"role": "assistant", "content": result["reply"]})
-    db.log_turn(session["purchase_id"], this_turn, "assistant", result["reply"])
+    if session["purchase_id"] is not None:
+        db.log_turn(session["purchase_id"], this_turn, "assistant", result["reply"])
 
     if result["verdict"] in ("approved", "denied"):
-        db.finalize(
-            session["purchase_id"],
-            result["verdict"],
-            result["score"],
-            _last_user_message(session["history"]),
-        )
+        if session["purchase_id"] is not None:
+            db.finalize(
+                session["purchase_id"],
+                result["verdict"],
+                result["score"],
+                _last_user_message(session["history"]),
+            )
         sessions.pop(session["id"], None)
 
-    savings = db.stats(req.user_id)
+    if session.get("client_stats") is not None:
+        # Stateless mode: savings come from the client's own numbers, plus
+        # this denial if it just happened. The extension persists the record.
+        saved = int(session["client_stats"].get("saved_cents") or 0)
+        price = session["product"].get("price_cents")
+        if result["verdict"] == "denied" and isinstance(price, int):
+            saved += price
+    else:
+        saved = db.stats(req.user_id).get("saved_cents", 0)
+
     return {
         "session_id": session["id"],
         "verdict": result["verdict"],
@@ -234,13 +296,19 @@ async def _interrogate(req: InterrogateRequest):
         "turn": session["turn"],
         "turns_remaining": max(config.MAX_TURNS - session["turn"], 0),
         "score": result["score"],
-        "savings_total_cents": savings.get("saved_cents", 0),
+        "savings_total_cents": saved,
     }
 
 
 @app.post("/api/interrogate")
-async def interrogate(req: InterrogateRequest):
+async def interrogate(req: InterrogateRequest, request: Request):
     try:
+        ip = _client_ip(request)
+        if _rate_limited(ip):
+            print(f"[interrogate] rate limit hit for {ip}. Failing open.", flush=True)
+            payload = _fail_open_payload(req)
+            payload["reply"] = "Easy, speedrunner. Auto-approved — but the lawyer noticed."
+            return payload
         return await _interrogate(req)
     except Exception as e:
         print(f"[interrogate] unexpected error: {e!r}. Failing open.")

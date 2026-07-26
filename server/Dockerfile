@@ -1,0 +1,13 @@
+# SwiperNoSwiping backend — stateless interrogation API (Railway)
+FROM python:3.12-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+# Railway injects PORT; default for local docker runs.
+ENV PORT=8000
+CMD uvicorn main:app --host 0.0.0.0 --port ${PORT}

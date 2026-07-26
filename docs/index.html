@@ -334,19 +334,18 @@
         <li><div><b>Download the extension</b><p><a href="swipernoswiping-extension.zip" download>Grab the zip</a> and unzip it anywhere you'll remember.</p></div></li>
         <li><div><b>Open <code>chrome://extensions</code></b><p>Toggle <b>Developer mode</b> on (top-right corner).</p></div></li>
         <li><div><b>Load unpacked</b><p>Click <b>Load unpacked</b> and select the unzipped <code>extension</code> folder.</p></div></li>
-        <li><div><b>Start the backend</b><p>The interrogator runs locally — your data never leaves your machine. Clone the repo and run the server (needs a free DeepSeek API key).</p></div></li>
+        <li><div><b>That's it — go shopping</b><p>The interrogation brain is hosted for the hackathon (rate-limited, stores nothing). Your profile and history never leave your browser.</p></div></li>
       </ol>
       <div>
         <div class="terminal">
-          <div class="c"># one-time setup</div>
+          <div class="c"># optional — self-host the brain instead of using ours</div>
           <div><span class="g">$</span> git clone https://github.com/Parth12358/SwiperNoSwiping-compiled</div>
           <div><span class="g">$</span> cd SwiperNoSwiping-compiled/server</div>
           <div><span class="g">$</span> python3 -m venv .venv &amp;&amp; .venv/bin/pip install -r requirements.txt</div>
           <div><span class="g">$</span> cp .env.example .env  <span class="c"># add your DEEPSEEK_API_KEY</span></div>
-          <div class="c"># every session</div>
-          <div><span class="g">$</span> .venv/bin/uvicorn main:app --port 8000</div>
+          <div><span class="g">$</span> .venv/bin/uvicorn main:app --port 8000  <span class="c"># + point extension/config.js at it</span></div>
         </div>
-        <p class="req">requires: Chrome 114+ · Python 3.11+ · a DeepSeek API key · a shopping problem</p>
+        <p class="req">requires: Chrome 114+ · a shopping problem · (self-hosting only: Python 3.11+ and a DeepSeek key)</p>
       </div>
     </div>
   </div>
@@ -387,7 +386,7 @@
       </details>
       <details>
         <summary>Where does my data go?</summary>
-        <p>Nowhere. The backend runs on your machine, history lives in a local SQLite file, and the only external call is the AI request to DeepSeek with the product info and your profile. No tracking, no ads targeting your weaknesses — the ad slot is a static joke.</p>
+        <p>Your profile and purchase history live in your browser (chrome.storage — JSON on your machine). Each interrogation sends the product plus that context to our hosted brain, which forwards it to DeepSeek for a verdict and forgets it — nothing is stored server-side, there are no accounts, and removing the extension deletes everything. No tracking, no ads targeting your weaknesses — the ad slot is a static joke.</p>
       </details>
       <details>
         <summary>Which sites does it work on?</summary>

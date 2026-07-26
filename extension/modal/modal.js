@@ -72,6 +72,16 @@
   const FETCH_TIMEOUT_MS = 8000;
 
   async function realInterrogate(product, sessionId, message) {
+    // Client-side data model: profile + history + stats live in
+    // chrome.storage.local and travel WITH the request. The hosted backend
+    // is stateless and stores nothing about you.
+    let context = null;
+    try {
+      if (window.__swipernoStore) context = await window.__swipernoStore.getContext();
+    } catch (e) {
+      console.warn('[swiperno:modal] context unavailable:', e);
+    }
+
     const options = {
       method: 'POST',
       body: JSON.stringify({
@@ -79,6 +89,7 @@
         product,
         session_id: sessionId,
         message: message,
+        context,
       }),
     };
 
@@ -233,6 +244,19 @@
         addBubble('user', message);
       }
       addBubble('assistant', result.reply);
+
+      if (result.verdict === 'approved' || result.verdict === 'denied') {
+        // Persist the outcome locally — this is what future interrogations
+        // (and the popup stats) are grounded in.
+        if (window.__swipernoStore && currentProduct) {
+          window.__swipernoStore.recordVerdict({
+            title: currentProduct.title,
+            price_cents: currentProduct.price_cents,
+            verdict: result.verdict,
+            score: result.score,
+          }).catch(() => {});
+        }
+      }
 
       if (result.verdict === 'approved') {
         showApproved(result.reply, result.savings_total_cents);

@@ -1,20 +1,7 @@
 // SwiperNoSwiping — Popup logic
-// Stats panel + onboarding form
-
-const BACKEND_URL = 'http://localhost:8000';
-const USER_ID = 1;
-
-// --- API helpers ---
-
-async function apiFetch(path, options = {}) {
-  const hasBody = options.body !== undefined;
-  const res = await fetch(`${BACKEND_URL}${path}`, {
-    headers: hasBody ? { 'Content-Type': 'application/json' } : {},
-    ...options,
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-}
+// Stats panel + onboarding form, backed by chrome.storage.local
+// (window.__swipernoStore from ../storage.js). No server calls: your data
+// lives in your browser.
 
 // --- Toast ---
 
@@ -29,12 +16,12 @@ function showToast(message, type) {
 
 async function loadStats() {
   try {
-    const data = await apiFetch(`/api/stats/${USER_ID}`);
+    const data = await window.__swipernoStore.getStats();
     document.getElementById('stat-denied').textContent = data.denied_count ?? '—';
     document.getElementById('stat-approved').textContent = data.approved_count ?? '—';
     document.getElementById('stat-saved').textContent = data.saved_cents
       ? `$${(data.saved_cents / 100).toFixed(2)}`
-      : '—';
+      : '$0.00';
     document.getElementById('stat-category').textContent = data.top_category || '—';
   } catch {
     document.getElementById('stat-denied').textContent = '—';
@@ -48,7 +35,7 @@ async function loadStats() {
 
 async function loadProfile() {
   try {
-    const data = await apiFetch(`/api/profile/${USER_ID}`);
+    const data = await window.__swipernoStore.getProfile();
     const form = document.getElementById('profile-form');
     form.display_name.value = data.display_name || '';
     form.income_band.value = data.income_band || '';
@@ -68,20 +55,15 @@ async function loadProfile() {
 async function saveProfile(e) {
   e.preventDefault();
   const form = e.target;
-  const body = {
-    user_id: USER_ID,
-    display_name: form.display_name.value,
-    income_band: form.income_band.value,
-    monthly_budget_cents: Math.round(parseFloat(form.monthly_budget_dollars.value || '0') * 100),
-    savings_goal: form.savings_goal.value,
-    goal_target_cents: Math.round(parseFloat(form.goal_target_dollars.value || '0') * 100),
-    known_weakness: form.known_weakness.value,
-  };
 
   try {
-    await apiFetch(`/api/profile/${USER_ID}`, {
-      method: 'PUT',
-      body: JSON.stringify(body),
+    await window.__swipernoStore.setProfile({
+      display_name: form.display_name.value,
+      income_band: form.income_band.value,
+      monthly_budget_cents: Math.round(parseFloat(form.monthly_budget_dollars.value || '0') * 100),
+      savings_goal: form.savings_goal.value,
+      goal_target_cents: Math.round(parseFloat(form.goal_target_dollars.value || '0') * 100),
+      known_weakness: form.known_weakness.value,
     });
     showToast('Profile saved.', 'success');
     showStatsPanel();
