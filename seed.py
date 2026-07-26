@@ -27,15 +27,17 @@ def seed():
     ]
     
     conn.executemany("""
-        INSERT OR REPLACE INTO purchases (id, user_id, site, product_title, price_cents, currency, url, image_url, category, verdict, score, final_justification)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+        INSERT OR REPLACE INTO purchases (user_id, site, product_title, price_cents, currency, url, image_url, category, verdict, score, final_justification)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?)
     """, purchases)
-    
+
     conn.commit()
-    
-    denied_count = sum(1 for p in purchases if p[9] == "denied")
-    saved_cents = sum(p[4] for p in purchases if p[9] == "denied")
-    approved_count = sum(1 for p in purchases if p[9] == "approved")
+
+    # Tuple indices: 0=user_id, 1=site, 2=title, 3=price_cents, 4=currency, 5=url,
+    #                6=image_url, 7=category, 8=verdict, 9=score, 10=justification
+    denied_count = sum(1 for p in purchases if p[8] == "denied")
+    saved_cents = sum(p[3] for p in purchases if p[8] == "denied")
+    approved_count = sum(1 for p in purchases if p[8] == "approved")
     
     print(f"[seed] {len(purchases)} purchases seeded")
     print(f"[seed]   denied: {denied_count}, approved: {approved_count}")
