@@ -1,0 +1,9 @@
+{
+  "session_id": "mock_session_001",
+  "verdict": "approved",
+  "reply": "Fair. Go ahead.",
+  "turn": 2,
+  "turns_remaining": 0,
+  "score": 82,
+  "savings_total_cents": 226600
+}

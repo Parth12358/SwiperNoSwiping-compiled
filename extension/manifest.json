@@ -26,7 +26,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["modal/*", "popup/*"],
+      "resources": ["modal/*", "popup/*", "fixtures/*"],
       "matches": ["<all_urls>"]
     }
   ],

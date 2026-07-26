@@ -2,7 +2,16 @@
 
 **Owner:** B
 **Timebox:** 3 hours, parallel slice
-**Status:** Independent. Build against fixtures from C and D's mock. No upstream dependency after T+0:20.
+**Status:** **COMPLETE.** All 12 deliverables done. Shadow DOM modal, state machine, mock cycle, popup stats with 10s polling, ad slot, retry pipeline — all implemented.
+
+**Key files:**
+- `extension/modal/modal.js` (316 lines) — state machine, fixture-based mock, retry+timeout fetch, ad slot
+- `extension/modal/modal.html` — shadow DOM markup with 4 states + ad slot
+- `extension/modal/modal.css` — isolated styles with shimmer animations
+- `extension/modal/ads.json` — static joke ads (random, no targeting)
+- `extension/popup/popup.js` — stats panel with 10s polling, onboarding form
+- `extension/popup/popup.html` — popup markup, validation min=1 on cent fields
+- `extension/popup/popup.css` — popup styles
 
 ---
 

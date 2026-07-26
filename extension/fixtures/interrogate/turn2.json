@@ -1,0 +1,9 @@
+{
+  "session_id": "mock_session_001",
+  "verdict": "pending",
+  "reply": "That's weak. Try again.",
+  "turn": 2,
+  "turns_remaining": 1,
+  "score": null,
+  "savings_total_cents": 226600
+}

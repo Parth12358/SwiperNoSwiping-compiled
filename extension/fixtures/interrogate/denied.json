@@ -1,0 +1,9 @@
+{
+  "session_id": "mock_session_001",
+  "verdict": "denied",
+  "reply": "Denied. Save for Japan.",
+  "turn": 2,
+  "turns_remaining": 0,
+  "score": 28,
+  "savings_total_cents": 261400
+}

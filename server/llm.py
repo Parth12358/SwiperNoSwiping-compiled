@@ -76,9 +76,20 @@ def _fail_open():
     }
 
 def _mock_complete(messages):
-    last = messages[-1]["content"] if messages else ""
-    if "broken" in last.lower() or "need" in last.lower() or "work" in last.lower():
-        return {"verdict": "approved", "score": 78, "reply": "Fair enough. Go ahead.", "category": "electronics", "roast": None}
-    if not last or last == "null":
+    user_messages = [m["content"] for m in messages if m.get("role") == "user"]
+    last_user = user_messages[-1] if user_messages else ""
+    is_first_turn = len(user_messages) == 0
+    total_turns = len(user_messages) + 1
+
+    if is_first_turn:
         return {"verdict": "pending", "score": None, "reply": "You already own two pairs of over-ears. What changed?", "category": "electronics", "roast": None}
-    return {"verdict": "denied", "score": 28, "reply": "Denied. Your Japan trip is $2,700 short.", "category": "electronics", "roast": None}
+
+    has_strong = any(w in last_user.lower() for w in ["broke", "broken", "need", "calls", "meeting", "replac", "necessar", "require"])
+
+    if has_strong:
+        return {"verdict": "approved", "score": 78, "reply": "Fair enough. Go ahead.", "category": "electronics", "roast": None}
+
+    if total_turns >= 3:
+        return {"verdict": "denied", "score": 28, "reply": "We've been over this. Denied. Your Japan trip is $2,700 short.", "category": "electronics", "roast": None}
+
+    return {"verdict": "pending", "score": None, "reply": "That's weak. Try again. What makes this different from the last four pairs?", "category": "electronics", "roast": None}

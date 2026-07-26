@@ -8,38 +8,40 @@
   let currentSessionId = null;
   let currentTurn = 0;
   let currentProduct = null;
+  let mockResponses = null;   // loaded from fixture files at init
+  let ads = [];               // loaded from ads.json at init
 
-  // --- Mock interrogate (swap to real at M3) ---
+  // --- Fixture loading ---
 
-  const MOCK_RESPONSES = {
-    turn1: {
-      session_id: 'mock_session_001',
-      verdict: 'pending',
-      reply: "You've bought four pairs of headphones in the last three months. What makes this one different?",
-      turn: 1,
-      turns_remaining: 2,
-      score: null,
-      savings_total_cents: 227400,
-    },
-    turn2_weak: {
-      session_id: 'mock_session_001',
-      verdict: 'denied',
-      reply: "Not good enough. You're $2,700 short of your Japan trip and you already own working headphones.",
-      turn: 2,
-      turns_remaining: 1,
-      score: 25,
-      savings_total_cents: 262200,
-    },
-    turn2_strong: {
-      session_id: 'mock_session_001',
-      verdict: 'approved',
-      reply: 'Fair enough. A broken pair that you need for work is a real reason. Go ahead.',
-      turn: 2,
-      turns_remaining: 1,
-      score: 78,
-      savings_total_cents: 227400,
-    },
-  };
+  async function loadFixture(path) {
+    const res = await fetch(chrome.runtime.getURL(path));
+    return res.json();
+  }
+
+  async function initMockResponses() {
+    if (mockResponses) return mockResponses;
+    const useMock = typeof CONFIG !== 'undefined' && CONFIG.MOCK_BACKEND;
+    if (!useMock) return null;
+    const [turn1, turn2, approved, denied] = await Promise.all([
+      loadFixture('fixtures/interrogate/turn1.json'),
+      loadFixture('fixtures/interrogate/turn2.json'),
+      loadFixture('fixtures/interrogate/approved.json'),
+      loadFixture('fixtures/interrogate/denied.json'),
+    ]);
+    mockResponses = { turn1, turn2, approved, denied };
+    return mockResponses;
+  }
+
+  async function initAds() {
+    if (ads.length > 0) return ads;
+    try {
+      const res = await fetch(chrome.runtime.getURL('modal/ads.json'));
+      ads = await res.json();
+    } catch (_) { /* ads are optional */ }
+    return ads;
+  }
+
+  // --- Mock interrogate (reads fixture files, supports 3-turn cycle) ---
 
   function isStrongJustification(text) {
     const strongWords = /\b(broke|broken|need|work|calls|meeting|replac|necessar|require)\b/i;
@@ -48,14 +50,28 @@
 
   async function mockInterrogate(product, sessionId, message) {
     await new Promise((r) => setTimeout(r, 800));
-    if (!message) return MOCK_RESPONSES.turn1;
-    if (isStrongJustification(message)) return MOCK_RESPONSES.turn2_strong;
-    return MOCK_RESPONSES.turn2_weak;
+    const m = await initMockResponses();
+    if (!m) throw new Error('Mock responses not loaded');
+
+    // Turn 1: no message yet, return pending question
+    if (!message) return m.turn1;
+
+    // Turn 2: user answered. If strong, approve. Otherwise, return second pending.
+    if (currentTurn <= 1) {
+      if (isStrongJustification(message)) return m.approved;
+      return m.turn2;
+    }
+
+    // Turn 3: final verdict
+    if (isStrongJustification(message)) return m.approved;
+    return m.denied;
   }
 
-  // --- Real API ---
+  // --- Real API (with retry and timeout) ---
 
- async function realInterrogate(product, sessionId, message) {
+  const FETCH_TIMEOUT_MS = 8000;
+
+  async function realInterrogate(product, sessionId, message) {
     const options = {
       method: 'POST',
       body: JSON.stringify({
@@ -66,18 +82,39 @@
       }),
     };
 
-    return new Promise((resolve, reject) => {
-      chrome.runtime.sendMessage(
-        { type: 'swiperno:fetch', path: '/api/interrogate', options },
-        (response) => {
-          if (response && response.ok) {
-            resolve(response.data);
-          } else {
-            reject(new Error(response ? response.error : 'No response'));
-          }
+    let lastError = null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const response = await new Promise((resolve, reject) => {
+          const timer = setTimeout(() => {
+            reject(new Error('chrome.runtime.sendMessage timed out'));
+          }, FETCH_TIMEOUT_MS);
+
+          chrome.runtime.sendMessage(
+            { type: 'swiperno:fetch', path: '/api/interrogate', options },
+            (response) => {
+              clearTimeout(timer);
+              if (chrome.runtime.lastError) {
+                reject(new Error(chrome.runtime.lastError.message));
+                return;
+              }
+              resolve(response);
+            }
+          );
+        });
+
+        if (response && response.ok) {
+          return response.data;
         }
-      );
-    });
+        throw new Error(response ? response.error : 'No response');
+      } catch (err) {
+        lastError = err;
+        if (attempt === 0) {
+          await new Promise((r) => setTimeout(r, 500));
+        }
+      }
+    }
+    throw lastError || new Error('Failed after retry');
   }
 
   async function interrogate(product, sessionId, message) {
@@ -173,6 +210,12 @@
     if (window.__swiperno && window.__swiperno.dismiss) {
       window.__swiperno.dismiss(currentInterceptId);
     }
+
+    setTimeout(() => {
+      if (shadowRoot && shadowRoot.host) {
+        shadowRoot.host.remove();
+      }
+    }, 5000);
   }
 
   // --- Turn handler ---
@@ -184,6 +227,7 @@
     try {
       const result = await interrogate(currentProduct, currentSessionId, message);
       currentSessionId = result.session_id;
+      currentTurn++;
 
       if (message) {
         addBubble('user', message);
@@ -207,7 +251,9 @@
       if (window.__swiperno && window.__swiperno.approve) {
         window.__swiperno.approve(currentInterceptId);
       }
-      shadowRoot.host.remove();
+      if (shadowRoot && shadowRoot.host) {
+        shadowRoot.host.remove();
+      }
     } finally {
       setLoading(false);
     }
@@ -254,5 +300,17 @@
     });
 
     await handleTurn(null);
+
+    // P1: render joke ad slot
+    const adList = await initAds();
+    if (adList.length > 0) {
+      const ad = adList[Math.floor(Math.random() * adList.length)];
+      const slot = shadowRoot.getElementById('swiperno-ad-slot');
+      const content = shadowRoot.getElementById('swiperno-ad-content');
+      if (slot && content) {
+        content.textContent = `${ad.headline} — ${ad.sponsor}`;
+        slot.style.display = 'block';
+      }
+    }
   });
 })();
