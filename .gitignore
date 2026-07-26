@@ -1,0 +1,13 @@
+# Secrets — never commit
+server/.env
+
+# Python
+server/.venv/
+__pycache__/
+*.pyc
+
+# Data
+*.db
+
+# OS
+.DS_Store
