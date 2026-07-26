@@ -2,6 +2,13 @@
 
 4 people · 180 minutes · one repo · zero merge conflicts if you respect the directory boundaries.
 
+> **Your individual PRD has the full spec for your slice:**
+> - A → [`PRD-A-extension.md`](./PRD-A-extension.md)
+> - B → [`PRD-B-modal.md`](./PRD-B-modal.md)
+> - C → [`PRD-C-llm.md`](./PRD-C-llm.md)
+> - D → [`PRD-D-data.md`](./PRD-D-data.md)
+> - Pitch → [`PRD-pitch.md`](./PRD-pitch.md)
+
 ---
 
 ## Ownership map

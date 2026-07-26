@@ -1,12 +1,17 @@
-# PRD — SwipernoSwiping
+# PRD — SwipernoSwiping (Master Index)
 
 **Version:** 0.3 (hackathon — parallel build, DeepSeek-only, Chrome-only)
 **Timebox:** 3 hours, 4 engineers
-**Status:** Contracts freeze at T+0:20. Nothing in §9 changes after that.
+**Status:** Contracts freeze at T+0:20. Nothing in the contracts changes after that.
 
-> **What changed from 0.2:** DeepSeek is now the sole AI provider for every AI call in the project, with a single client module and pinned model IDs — see §7.1, and read the deprecation warning in it before anyone writes a fetch call. Chrome-only is now an enforced technical constraint rather than a non-goal — see §7.2.
+> **This is the master overview.** For your specific slice, read your individual PRD:
+> - [PRD-A — Extension & DOM Interception](./PRD-A-extension.md) — Owner: A
+> - [PRD-B — Modal & Popup UI](./PRD-B-modal.md) — Owner: B
+> - [PRD-C — Backend & DeepSeek LLM](./PRD-C-llm.md) — Owner: C
+> - [PRD-D — Data, Profile & Demo](./PRD-D-data.md) — Owner: D
+> - [PRD-Pitch — Sell This Extension](./PRD-pitch.md) — Pitch deck for judges/investors
 >
-> **What changed in 0.2:** four independent vertical slices, frozen seams, rolling merges. §8 and §9.
+> **Extension activation:** The extension is inactive without a valid `DEEPSEEK_API_KEY` in `server/.env`. A missing or invalid key means all interrogations approve instantly (fail open). See [PRD-C](./PRD-C-llm.md) §2 for the API-key gate.
 
 ---
 

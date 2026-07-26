@@ -200,5 +200,10 @@ The pitch includes an ad slot in the modal. It renders from a static `ads.json` 
 
 ## Docs
 
-- [`PRD.md`](./PRD.md) — scope, contracts, data model, risks, demo script
+- [`PRD.md`](./PRD.md) — master overview: scope, contracts, data model, risks, demo script
 - [`TEAMSPLIT.md`](./TEAMSPLIT.md) — ownership map and the 3-hour timeline
+- [`PRD-A-extension.md`](./PRD-A-extension.md) — Engineer A: Extension & DOM interception
+- [`PRD-B-modal.md`](./PRD-B-modal.md) — Engineer B: Modal UI & Popup
+- [`PRD-C-llm.md`](./PRD-C-llm.md) — Engineer C: Backend & DeepSeek LLM
+- [`PRD-D-data.md`](./PRD-D-data.md) — Engineer D: Data, Profile & Demo
+- [`PRD-pitch.md`](./PRD-pitch.md) — Pitch deck: sell this extension to judges/investors
