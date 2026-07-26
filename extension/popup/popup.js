@@ -92,5 +92,20 @@ document.getElementById('btn-edit-profile').addEventListener('click', showProfil
 document.getElementById('btn-back').addEventListener('click', showStatsPanel);
 document.getElementById('profile-form').addEventListener('submit', saveProfile);
 
-loadStats();
+async function init() {
+  if (new URLSearchParams(location.search).has('welcome')) {
+    document.body.classList.add('welcome');
+  }
+  // Onboarding: an empty profile means the interrogator knows nothing about
+  // you — send new users straight to the form.
+  const profile = await window.__swipernoStore.getProfile();
+  if (!profile.display_name && !profile.savings_goal) {
+    showProfilePanel();
+  } else {
+    showStatsPanel();
+  }
+  loadStats();
+}
+
+init();
 setInterval(loadStats, 10000);

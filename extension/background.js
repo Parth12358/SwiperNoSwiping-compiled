@@ -61,3 +61,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true; // keep channel open for async response
   }
 });
+
+// First-run onboarding: open the profile form in a tab so the lawyer knows
+// who she's defending before the first interrogation.
+chrome.runtime.onInstalled.addListener((details) => {
+  if (details.reason === 'install') {
+    chrome.tabs.create({ url: chrome.runtime.getURL('popup/popup.html?welcome=1') });
+  }
+});

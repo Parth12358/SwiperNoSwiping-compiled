@@ -225,3 +225,14 @@ label select:focus {
     transition: none;
   }
 }
+
+/* First-run onboarding: popup.html opened as a full tab (?welcome=1) */
+body.welcome {
+  width: 380px;
+  margin: 48px auto;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 24px 64px rgba(9, 9, 11, 0.1);
+  padding: 24px;
+}
+
