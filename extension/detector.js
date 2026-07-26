@@ -47,7 +47,7 @@ function detectSite() {
   const host = window.location.hostname.replace('www.', '');
   if (host.includes('amazon')) return 'amazon';
   if (host.includes('bestbuy')) return 'bestbuy';
-  return 'generic';
+  return 'unknown';
 }
 
 function getAdapter() {
@@ -59,9 +59,11 @@ function detectBySelectors(selectors) {
   const results = [];
   for (const sel of selectors) {
     try {
-      const el = document.querySelector(sel);
-      if (el && isVisible(el)) {
-        results.push(el);
+      const elements = document.querySelectorAll(sel);
+      for (const el of elements) {
+        if (isVisible(el)) {
+          results.push(el);
+        }
       }
     } catch (_) {
       // invalid selector, skip
@@ -74,7 +76,7 @@ function detectByText(regex) {
   const results = [];
   const candidates = document.querySelectorAll('button, input[type="submit"], a[role="button"]');
   for (const el of candidates) {
-    if (regex.test(el.innerText || el.value || '')) {
+    if (regex.test(el.innerText || el.value || '') && isVisible(el)) {
       results.push(el);
     }
   }

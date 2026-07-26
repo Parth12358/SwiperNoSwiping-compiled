@@ -2,6 +2,7 @@
 
 .swiperno-overlay {
   position: absolute;
+  box-sizing: content-box;
   z-index: 2147483647;
   background: transparent;
   cursor: not-allowed;

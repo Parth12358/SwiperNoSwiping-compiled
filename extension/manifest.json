@@ -19,7 +19,7 @@
   "content_scripts": [
     {
       "matches": ["https://www.amazon.com/*", "https://www.bestbuy.com/*", "file://*/demo/product.html"],
-      "js": ["config.js", "detector.js", "content.js"],
+      "js": ["config.js", "detector.js", "content.js", "modal/modal.js"],
       "css": ["overlay.css"],
       "run_at": "document_idle"
     }

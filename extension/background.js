@@ -2,10 +2,26 @@
 // Thin fetch proxy. All API calls from content scripts go through here.
 // Fail-open on any error: the extension must never trap a user on a page.
 
+const MOCK_BACKEND = false;  // Flip to true for local dev without server
 const BACKEND_URL = 'http://localhost:8000';
 const TIMEOUT_MS = 8000;
 
 async function proxyFetch(path, options = {}) {
+  if (MOCK_BACKEND) {
+    return {
+      ok: true,
+      data: {
+        session_id: 'mock_bg_session',
+        verdict: 'pending',
+        reply: 'You already own two pairs of over-ears. What changed?',
+        turn: 1,
+        turns_remaining: 2,
+        score: null,
+        savings_total_cents: 227400,
+      }
+    };
+  }
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 

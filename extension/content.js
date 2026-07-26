@@ -28,12 +28,12 @@
       const interceptId = 'int_' + Math.random().toString(36).substring(2, 10);
 
       document.dispatchEvent(new CustomEvent('swiperno:intercept', {
-        detail: { intercept_id: interceptId, product, target: button },
+        detail: { intercept_id: interceptId, product },
       }));
     });
 
     document.body.appendChild(div);
-    overlays.push({ div, button });
+    overlays.push({ div, button, interceptId });
     observedButtons.add(button);
   }
 
@@ -63,9 +63,11 @@
   function scanAndOverlay() {
     const buttons = window.__swipernoDetector.detectButtons();
     for (const btn of buttons) {
-      if (!observedButtons.has(btn)) {
-        createOverlay(btn);
-      }
+      if (observedButtons.has(btn)) continue;
+      const cooldownKey = 'swiperno:cooldown:' + btoa(window.location.href).substring(0, 32);
+      const cooldown = localStorage.getItem(cooldownKey);
+      if (cooldown && (Date.now() - parseInt(cooldown, 10) < 10 * 60 * 1000)) continue;
+      createOverlay(btn);
     }
   }
 
@@ -84,11 +86,25 @@
   function extractProduct(button) {
     const site = window.__swipernoDetector.detectSite();
     const metaTitle = document.querySelector('meta[property="og:title"]');
-    const title = metaTitle ? metaTitle.getAttribute('content') : document.title;
+    const productTitleEl = document.querySelector('#productTitle');
+    const h1 = document.querySelector('h1');
+    const title = metaTitle
+      ? metaTitle.getAttribute('content')
+      : (productTitleEl ? productTitleEl.innerText : null)
+      || (h1 ? h1.innerText : null)
+      || document.title;
 
     const priceCents = extractPrice();
+    let imageUrl = null;
     const metaImage = document.querySelector('meta[property="og:image"]');
-    const imageUrl = metaImage ? metaImage.getAttribute('content') : null;
+    if (metaImage) imageUrl = metaImage.getAttribute('content');
+    if (!imageUrl) {
+      const productContainer = document.querySelector('[class*="product" i], [class*="pdp" i], [id*="product" i]');
+      if (productContainer) {
+        const img = productContainer.querySelector('img');
+        if (img) imageUrl = img.src;
+      }
+    }
 
     const snippet = extractSnippet(button);
 
@@ -104,6 +120,12 @@
   }
 
   function extractPrice() {
+    const dataPrice = document.querySelector('[data-price]');
+    if (dataPrice && dataPrice.dataset.price) {
+      const val = parseFloat(dataPrice.dataset.price);
+      if (!isNaN(val)) return Math.round(val * 100);
+    }
+
     const meta = document.querySelector('[itemprop="price"]');
     if (meta && meta.getAttribute('content')) {
       const val = parseFloat(meta.getAttribute('content'));
@@ -118,8 +140,7 @@
       if (!isNaN(w)) return w * 100 + f;
     }
 
-    const text = document.body.innerText;
-    const match = text.match(/\$(\d{1,3}(?:,\d{3})*\.?\d{0,2})/);
+    const match = document.body.innerText.match(/\$(\d{1,3}(?:,\d{3})*\.?\d{0,2})/);
     if (match) {
       return Math.round(parseFloat(match[1].replace(/,/g, '')) * 100);
     }
@@ -153,7 +174,7 @@
       const interceptId = 'int_' + Math.random().toString(36).substring(2, 10);
 
       document.dispatchEvent(new CustomEvent('swiperno:intercept', {
-        detail: { intercept_id: interceptId, product, target: button },
+        detail: { intercept_id: interceptId, product },
       }));
     }
   }, true);
@@ -161,47 +182,47 @@
   // --- swiperno_mock support ---
 
   if (new URLSearchParams(window.location.search).get('swiperno_mock') === '1') {
-    window.addEventListener('DOMContentLoaded', () => {
-      document.dispatchEvent(new CustomEvent('swiperno:intercept', {
-        detail: {
-          intercept_id: 'int_mock_demo',
-          product: {
-            title: 'Sony WH-1000XM5 Wireless Headphones',
-            price_cents: 34800,
-            currency: 'USD',
-            url: window.location.href,
-            image_url: 'https://placehold.co/600x400/EEE/999?text=Sony+WH-1000XM5',
-            site: 'demo',
-            dom_snippet: 'Sony WH-1000XM5 Wireless Headphones. $348.00. Industry-leading noise canceling...',
-          },
-          target: null,
+    if (!window.__swiperno) {
+      window.__swiperno = {
+        approve() { console.log('[mock] approve called'); },
+        dismiss() { console.log('[mock] dismiss called'); },
+      };
+    }
+    document.dispatchEvent(new CustomEvent('swiperno:intercept', {
+      detail: {
+        intercept_id: 'int_mock_demo',
+        product: {
+          title: 'Sony WH-1000XM5 Wireless Headphones',
+          price_cents: 34800,
+          currency: 'USD',
+          url: window.location.href,
+          image_url: 'https://placehold.co/600x400/EEE/999?text=Sony+WH-1000XM5',
+          site: 'demo',
+          dom_snippet: 'Sony WH-1000XM5 Wireless Headphones. $348.00. Industry-leading noise canceling...',
         },
-      }));
-    });
+      },
+    }));
   }
 
   // --- A's external API for B ---
 
   window.__swiperno = {
     approve(interceptId) {
-      const overlay = overlays.find((o) => o.interceptId === interceptId);
-      if (!overlay) return;
+      const idx = overlays.findIndex((o) => o.interceptId === interceptId);
+      if (idx === -1) return;
+      const overlay = overlays[idx];
       overlay.div.remove();
-      overlays = overlays.filter((o) => o !== overlay);
+      overlays.splice(idx, 1);
       overlay.button.click();
     },
 
     dismiss(interceptId) {
-      const cooldownKey = `swiperno:cooldown:${interceptId}`;
+      const cooldownKey = 'swiperno:cooldown:' + btoa(window.location.href).substring(0, 32);
       localStorage.setItem(cooldownKey, Date.now().toString());
     },
   };
 
   // --- Initial scan ---
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', scanAndOverlay);
-  } else {
-    scanAndOverlay();
-  }
+  scanAndOverlay();
 })();
