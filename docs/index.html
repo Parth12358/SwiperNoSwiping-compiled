@@ -406,11 +406,12 @@
 
 <script src="hexclave-config.js"></script>
 <script type="module">
-  // Hexclave user infrastructure (auth/profiles) — @hexclave/js.
-  // Until a project ID is configured (see HEXCLAVE_SETUP.md), the form
-  // explains itself instead of pretending.
+  // Hexclave user infrastructure (auth/profiles) — @hexclave/js, cloud setup.
+  // Hosted-pages flow per docs.hexclave.com: init the client app, then
+  // redirectToSignUp() sends the visitor to Hexclave's hosted sign-up.
   const form = document.getElementById('hexclave-form');
   const status = document.getElementById('hexclave-status');
+  const submitBtn = form.querySelector('button[type="submit"]');
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const projectId = window.HEXCLAVE_PROJECT_ID;
@@ -418,14 +419,23 @@
       status.textContent = 'Accounts launch soon — Hexclave project not connected yet (see HEXCLAVE_SETUP.md).';
       return;
     }
-    status.textContent = 'Connecting to Hexclave…';
+    submitBtn.disabled = true;
+    status.textContent = 'Opening secure sign-up…';
     try {
-      const { HexclaveClientApp } = await import('https://esm.sh/@hexclave/js');
-      const app = new HexclaveClientApp({ projectId, tokenStore: 'cookie' });
-      window.__hexclave = app; // sign-up flow continues per docs.hexclave.com
-      status.textContent = 'Hexclave connected — finishing sign-up…';
+      // Version pinned so a new SDK release can't break the live page.
+      const { HexclaveClientApp } = await import('https://esm.sh/@hexclave/js@1.0.67');
+      const app = new HexclaveClientApp({
+        projectId,
+        baseUrl: window.HEXCLAVE_API_URL,
+        tokenStore: 'cookie',
+        urls: { default: { type: 'hosted' } },
+      });
+      window.__hexclave = app;
+      await app.redirectToSignUp();
     } catch (err) {
+      console.error('[hexclave]', err);
       status.textContent = 'Hexclave unreachable right now — try again in a minute.';
+      submitBtn.disabled = false;
     }
   });
 </script>

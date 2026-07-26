@@ -4,16 +4,31 @@
 platform behind the site's account form: auth, profiles, teams, analytics. It does **not** host
 the site itself — the site is on GitHub Pages; Hexclave provides the user layer.
 
-## One-time setup (needs a human — creates an account)
+## Status: CONNECTED (cloud setup)
 
-1. Sign up / log in at **https://app.hexclave.com** and create a project (free tier: 10K auth users).
-2. Copy the **Project ID** into `docs/hexclave-config.js`:
-   ```js
-   window.HEXCLAVE_PROJECT_ID = "proj_...";
-   ```
-3. The **secret server key** (`HEXCLAVE_SECRET_SERVER_KEY`) goes in `server/.env` ONLY —
-   never in the site, never committed. It's needed later for server-side savings sync.
-4. Commit + push `docs/hexclave-config.js` — the landing page account form goes live.
+- Project ID `2a0a2d75-5c4f-43c5-bb6c-d6638c494fb8` and API URL
+  `https://api.stack-auth.com` are live in `docs/hexclave-config.js` (public values)
+  and mirrored in `server/.env` / `server/.env.example`.
+- The landing-page form initializes `@hexclave/js@1.0.67` (version-pinned via esm.sh)
+  with `tokenStore: "cookie"` and `urls: { default: { type: "hosted" } }`, then calls
+  `redirectToSignUp()` — visitors land on Hexclave's hosted sign-up pages.
+
+## Remaining human step
+
+Paste the **secret server key** from the Hexclave dashboard into `server/.env`:
+```
+HEXCLAVE_SECRET_SERVER_KEY=...
+```
+Server-side ONLY — never in the site, never committed. It unlocks server-side
+session verification (`HexclaveServerApp` / REST) for per-user savings sync.
+
+## Optional: Hexclave MCP for AI agents
+
+To give coding agents live access to Hexclave docs/APIs, register their MCP server
+yourself (agent config is a you-decision, not something setup scripts should touch):
+```
+claude mcp add --transport http hexclave https://mcp.hexclave.com/mcp
+```
 
 ## How the site uses it
 
