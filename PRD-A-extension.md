@@ -2,7 +2,15 @@
 
 **Owner:** A
 **Timebox:** 3 hours, parallel slice
-**Status:** Independent. No upstream dependencies after T+0:20. Fixtures replace B, C, D.
+**Status:** **COMPLETE.** All 13 deliverables done. All contracts match. Code is interop-ready for B's modal and C's backend. See `extension/` directory.
+
+**Key files:**
+- `extension/manifest.json` — MV3, min_chrome_version 114, loads modal.js before content.js
+- `extension/content.js` — overlay, intercept, extract, approve/dismiss, cooldown, mock
+- `extension/detector.js` — querySelectorAll + text-regex, per-site adapters, visibility filter
+- `extension/background.js` — fetch proxy with MOCK_BACKEND and fail-open
+- `extension/overlay.css` — transparent overlay with correct box-sizing
+- `extension/config.js` — backend URL and mock flags
 
 ---
 

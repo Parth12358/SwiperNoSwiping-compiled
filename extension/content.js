@@ -182,12 +182,6 @@
   // --- swiperno_mock support ---
 
   if (new URLSearchParams(window.location.search).get('swiperno_mock') === '1') {
-    if (!window.__swiperno) {
-      window.__swiperno = {
-        approve() { console.log('[mock] approve called'); },
-        dismiss() { console.log('[mock] dismiss called'); },
-      };
-    }
     document.dispatchEvent(new CustomEvent('swiperno:intercept', {
       detail: {
         intercept_id: 'int_mock_demo',
@@ -217,6 +211,11 @@
     },
 
     dismiss(interceptId) {
+      const idx = overlays.findIndex((o) => o.interceptId === interceptId);
+      if (idx !== -1) {
+        overlays[idx].div.remove();
+        overlays.splice(idx, 1);
+      }
       const cooldownKey = 'swiperno:cooldown:' + btoa(window.location.href).substring(0, 32);
       localStorage.setItem(cooldownKey, Date.now().toString());
     },
